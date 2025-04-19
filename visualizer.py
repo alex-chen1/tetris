@@ -14,13 +14,26 @@ def design():
     # Create a 640x480 array filled with 0 (black)
     pixel_array = np.zeros((480, 640), dtype=np.uint8)
 
-    # net is 4 pixels wide, dash every 10th pixel starting from 5th
-    # axes are flipped because of how the array is displayed
-    side = 12
-    vstart = 80
-    hstart = 240
+    # draw a board full of blocks
+    side = 18
+    space = 2 
+    vstart = (480 - 20 * (side + space)) // 2
+    hstart = (640 - 10 * (side + space)) // 2
     for i in range(side):
-        pixel_array[vstart + i:(vstart + i + (side + 1) * 20):(side + 1), hstart + i:(hstart + i + (side + 1) * 10):(side + 1)] = 255
+        for col in range(10):
+            pixel_array[vstart + i:(vstart + i + (side + space) * 20):(side + space), hstart + col * (side + space):hstart + col * (side + space) + side] = 255
+    
+    # draw the next block tile
+    for x in range(80, 240):
+        pixel_array[x, 450:610] = 200
+    
+    pixel_array[50:70, 450:453] = 255
+    for i in range(1,12):
+        pixel_array[]
+    pixel_array[50:70, 462:465] = 255
+
+    # draw the number of lines tile
+
 
     pixel_array = pixel_array.T
     
