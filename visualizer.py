@@ -21,8 +21,8 @@ def design():
     space = 2
 
     # define size of game board
-    rows = 25
-    cols = 15
+    rows = 20
+    cols = 10
 
     # draw a board full of blocks
     # define vertical and horizontal start/end points for the game board (not the full display, just the play area)
@@ -37,7 +37,7 @@ def design():
     # draw the next block tile
     for i in range(side):
         for col in range(4):
-            pixel_array[vstart + 120 + i + space // 2:(vstart + 120 + i + (side + space) * 4):(side + space) + space // 2, hstart + 250 + col * (side + space) + space // 2:hstart + 250 + col * (side + space) + side + space // 2] = 255
+            pixel_array[vstart + 120 + i + space // 2:(vstart + 120 + i + (side + space) * 4):(side + space) + space // 2, hend + 50 + col * (side + space) + space // 2:hend + 50 + col * (side + space) + side + space // 2] = 255
     
     # draw "NEXT BLOCK" text
     # draw N
@@ -153,12 +153,13 @@ def design():
     pixel_array[vstart + 363:vstart + 369, hend + 100:hend + 103] = 255
     pixel_array[vstart + 369:vstart + 372, hend + 103:hend + 112] = 255
     
+    # draw frames
     pixel_array[vstart - side - space - 5:vstart - side - space, hstart - side - space - 5:hend + 160] = 255
-    pixel_array[vstart - side - space + 22 * (side + space):vstart - side - space + 22 * (side + space) + 5, hstart - side - space - 5:hend + 160] = 255
-    pixel_array[vstart - side - space - 5:vstart - side - space + 22 * (side + space), hstart - side - space - 5:hstart - side - space] = 255
-    pixel_array[vstart - side - space - 5:vstart - side - space + 22 * (side + space), hstart - side - space + 12 * (side + space):hstart - side - space + 12 * (side + space) + 5] = 255
-    pixel_array[vstart - side - space - 5:vstart - side - space + 22 * (side + space) + 5, hend + 160:hend + 165] = 255
-    pixel_array[vstart + 260:vstart + 265, hstart - side - space + 12 * (side + space):hend + 165] = 255
+    pixel_array[vend + side + space:vend + side + space + 5, hstart - side - space - 5:hend + 160] = 255
+    pixel_array[vstart - side - space - 5:vend + side + space, hstart - side - space - 5:hstart - side - space] = 255
+    pixel_array[vstart - side - space - 5:vend + side + space, hend + side + space:hend + side + space + 5] = 255
+    pixel_array[vstart - side - space - 5:vend + side + space + 5, hend + 160:hend + 165] = 255
+    pixel_array[vstart + 260:vstart + 265, hend + side + space:hend + 165] = 255
 
     pixel_array[vstart - side - space:vstart, hstart - side - space:hend + side + space] = 100
     pixel_array[vend:vend + side + space, hstart - side - space:hend + side + space] = 100
