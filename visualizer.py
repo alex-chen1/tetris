@@ -6,8 +6,8 @@ import numpy as np
 # pixels are black or white  using a 640x480 array.
 def design():
     pygame.init()
-    screen_x = 1000
-    screen_y = 1000
+    screen_x = 640
+    screen_y = 480
     screen = pygame.display.set_mode((screen_x, screen_y))
     pygame.display.set_caption("Black and White Display")
     
@@ -161,10 +161,10 @@ def design():
     pixel_array[vstart - side - space - 5:vend + side + space + 5, hend + 160:hend + 165] = 255
     pixel_array[vstart + 260:vstart + 265, hend + side + space:hend + 165] = 255
 
-    pixel_array[vstart - side - space:vstart, hstart - side - space:hend + side + space] = 100
-    pixel_array[vend:vend + side + space, hstart - side - space:hend + side + space] = 100
-    pixel_array[vstart:vend, hstart - side - space:hstart] = 100
-    pixel_array[vstart:vend, hend:hend + side + space] = 100
+    pixel_array[vstart - 6:vstart - 1, hstart - 6:hend + 6] = 255
+    pixel_array[vend + 1:vend + 6, hstart - 6:hend + 6] = 255
+    pixel_array[vstart - 1:vend + 1, hstart - 6:hstart - 1] = 255
+    pixel_array[vstart - 1:vend + 1, hend + 1:hend + 6] = 255
 
     pixel_array = pixel_array.T
     
