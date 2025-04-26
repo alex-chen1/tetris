@@ -6,8 +6,8 @@ import numpy as np
 # pixels are black or white  using a 640x480 array.
 def design():
     pygame.init()
-    screen_x = 1000
-    screen_y = 1000
+    screen_x = 640
+    screen_y = 640
     screen = pygame.display.set_mode((screen_x, screen_y))
     pygame.display.set_caption("Black and White Display")
     
@@ -22,7 +22,7 @@ def design():
 
     # define size of game board
     rows = 20
-    cols = 10
+    cols = 15
 
     # draw a board full of blocks
     # define vertical and horizontal start/end points for the game board (not the full display, just the play area)
