@@ -1,41 +1,13 @@
-----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
--- 
--- Create Date: 04/24/2025 02:43:28 AM
--- Design Name: 
--- Module Name: score_keeper - Behavioral
--- Project Name: 
--- Target Devices: 
--- Tool Versions: 
--- Description: 
--- 
--- Dependencies: 
--- 
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
--- 
-----------------------------------------------------------------------------------
-
-
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
-
 entity score_keeper is
-    Port ( score : in integer range 0 to 999;
+    Port ( score    : in integer range 0 to 999;
+           clk      : in std_logic;
            hundreds : out STD_LOGIC_VECTOR (6 downto 0);
-           tens : out STD_LOGIC_VECTOR (6 downto 0);
-           ones : out STD_LOGIC_VECTOR (6 downto 0));
+           tens     : out STD_LOGIC_VECTOR (6 downto 0);
+           ones     : out STD_LOGIC_VECTOR (6 downto 0)
+    );
 end score_keeper;
 
 architecture Behavioral of score_keeper is
@@ -46,7 +18,7 @@ begin
     hundreds_int <= score / 100;
     tens_int <= (score / 10) mod 10;
     ones_int <= score mod 10;
-    process
+    process(clk)
     begin
         case hundreds_int is
             when 0 =>

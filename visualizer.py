@@ -8,6 +8,8 @@ def design():
     pygame.init()
     screen_x = 640
     screen_y = 480
+    hud_width = 160
+    hud_divider_height = 260
     screen = pygame.display.set_mode((screen_x, screen_y))
     pygame.display.set_caption("Black and White Display")
     
@@ -22,12 +24,12 @@ def design():
 
     # define size of game board
     rows = 20
-    cols = 15
+    cols = 10
 
     # draw a board full of blocks
     # define vertical and horizontal start/end points for the game board (not the full display, just the play area)
     vstart = (screen_y - rows * (side + space)) // 2
-    hstart = (screen_x - cols * (side + space)) // 2 - 100
+    hstart = (screen_x - cols * (side + space) - hud_width) // 2
     vend = vstart + rows * (side + space)
     hend = hstart + cols * (side + space)
     for i in range(side):
@@ -102,64 +104,68 @@ def design():
 
     # draw the number of lines tile
     # draw L
-    pixel_array[vstart + 310:vstart + 330, hend + 40:hend + 43] = 255
-    pixel_array[vstart + 327:vstart + 330, hend + 40:hend + 55] = 255
+    pixel_array[vstart + hud_divider_height + 50:vstart + hud_divider_height + 70, hend + 40:hend + 43] = 255
+    pixel_array[vstart + hud_divider_height + 67:vstart + hud_divider_height + 70, hend + 40:hend + 55] = 255
     # draw I
-    pixel_array[vstart + 310:vstart + 330, hend + 66:hend + 70] = 255
-    pixel_array[vstart + 310:vstart + 313, hend + 60:hend + 75] = 255
-    pixel_array[vstart + 327:vstart + 330, hend + 60:hend + 75] = 255
+    pixel_array[vstart + hud_divider_height + 50:vstart + hud_divider_height + 70, hend + 66:hend + 70] = 255
+    pixel_array[vstart + hud_divider_height + 50:vstart + hud_divider_height + 53, hend + 60:hend + 75] = 255
+    pixel_array[vstart + hud_divider_height + 67:vstart + hud_divider_height + 70, hend + 60:hend + 75] = 255
     # draw N
-    pixel_array[vstart + 310:vstart + 330, hend + 80:hend + 83] = 255
+    pixel_array[vstart + hud_divider_height + 50:vstart + hud_divider_height + 70, hend + 80:hend + 83] = 255
     for i in range(1,12):
-        pixel_array[vstart + 311 + i:vstart + 315 + i, hend + 80 + i] = 255
-    pixel_array[vstart + 310:vstart + 330, hend + 92:hend + 95] = 255
+        pixel_array[vstart + hud_divider_height + 51 + i:vstart + hud_divider_height + 55 + i, hend + 80 + i] = 255
+    pixel_array[vstart + hud_divider_height + 50:vstart + hud_divider_height + 70, hend + 92:hend + 95] = 255
     # draw E
-    pixel_array[vstart + 310:vstart + 330, hend + 100:hend + 103] = 255
-    pixel_array[vstart + 310:vstart + 313, hend + 103:hend + 115] = 255
-    pixel_array[vstart + 318:vstart + 321, hend + 103:hend + 115] = 255
-    pixel_array[vstart + 327:vstart + 330, hend + 103:hend + 115] = 255
+    pixel_array[vstart + hud_divider_height + 50:vstart + hud_divider_height + 70, hend + 100:hend + 103] = 255
+    pixel_array[vstart + hud_divider_height + 50:vstart + hud_divider_height + 53, hend + 103:hend + 115] = 255
+    pixel_array[vstart + hud_divider_height + 58:vstart + hud_divider_height + 61, hend + 103:hend + 115] = 255
+    pixel_array[vstart + hud_divider_height + 67:vstart + hud_divider_height + 70, hend + 103:hend + 115] = 255
     # draw S
-    pixel_array[vstart + 310:vstart + 321, hend + 120:hend + 123] = 255
-    pixel_array[vstart + 310:vstart + 313, hend + 123:hend + 135] = 255
-    pixel_array[vstart + 318:vstart + 321, hend + 123:hend + 135] = 255
-    pixel_array[vstart + 327:vstart + 330, hend + 120:hend + 135] = 255
-    pixel_array[vstart + 318:vstart + 330, hend + 132:hend + 135] = 255
+    pixel_array[vstart + hud_divider_height + 50:vstart + hud_divider_height + 61, hend + 120:hend + 123] = 255
+    pixel_array[vstart + hud_divider_height + 59:vstart + hud_divider_height + 70, hend + 132:hend + 135] = 255
+
+    pixel_array[vstart + hud_divider_height + 50:vstart + hud_divider_height + 53, hend + 120:hend + 135] = 255
+    pixel_array[vstart + hud_divider_height + 58:vstart + hud_divider_height + 61, hend + 120:hend + 135] = 255
+    pixel_array[vstart + hud_divider_height + 67:vstart + hud_divider_height + 70, hend + 120:hend + 135] = 255
+    
 
     # draw score
     # hundreds digit
-    pixel_array[vstart + 360:vstart + 363, hend + 63:hend + 72] = 255
-    pixel_array[vstart + 363:vstart + 369, hend + 72:hend + 75] = 255
-    pixel_array[vstart + 372:vstart + 378, hend + 72:hend + 75] = 255
-    pixel_array[vstart + 378:vstart + 381, hend + 63:hend + 72] = 255
-    pixel_array[vstart + 372:vstart + 378, hend + 60:hend + 63] = 255
-    pixel_array[vstart + 363:vstart + 369, hend + 60:hend + 63] = 255
-    pixel_array[vstart + 369:vstart + 372, hend + 63:hend + 72] = 255
+    pixel_array[vstart + hud_divider_height + 100:vstart + hud_divider_height + 103, hend + 63:hend + 72] = 255
+    pixel_array[vstart + hud_divider_height + 103:vstart + hud_divider_height + 109, hend + 72:hend + 75] = 255
+    pixel_array[vstart + hud_divider_height + 112:vstart + hud_divider_height + 118, hend + 72:hend + 75] = 255
+    pixel_array[vstart + hud_divider_height + 118:vstart + hud_divider_height + 121, hend + 63:hend + 72] = 255
+    pixel_array[vstart + hud_divider_height + 112:vstart + hud_divider_height + 118, hend + 60:hend + 63] = 255
+    pixel_array[vstart + hud_divider_height + 103:vstart + hud_divider_height + 109, hend + 60:hend + 63] = 255
+    pixel_array[vstart + hud_divider_height + 109:vstart + hud_divider_height + 112, hend + 63:hend + 72] = 255
 
     # tens digit
-    pixel_array[vstart + 360:vstart + 363, hend + 83:hend + 92] = 255
-    pixel_array[vstart + 363:vstart + 369, hend + 92:hend + 95] = 255
-    pixel_array[vstart + 372:vstart + 378, hend + 92:hend + 95] = 255
-    pixel_array[vstart + 378:vstart + 381, hend + 83:hend + 92] = 255
-    pixel_array[vstart + 372:vstart + 378, hend + 80:hend + 83] = 255
-    pixel_array[vstart + 363:vstart + 369, hend + 80:hend + 83] = 255
-    pixel_array[vstart + 369:vstart + 372, hend + 83:hend + 92] = 255
+    pixel_array[vstart + hud_divider_height + 100:vstart + hud_divider_height + 103, hend + 83:hend + 92] = 255
+    pixel_array[vstart + hud_divider_height + 103:vstart + hud_divider_height + 109, hend + 92:hend + 95] = 255
+    pixel_array[vstart + hud_divider_height + 112:vstart + hud_divider_height + 118, hend + 92:hend + 95] = 255
+    pixel_array[vstart + hud_divider_height + 118:vstart + hud_divider_height + 121, hend + 83:hend + 92] = 255
+    pixel_array[vstart + hud_divider_height + 112:vstart + hud_divider_height + 118, hend + 80:hend + 83] = 255
+    pixel_array[vstart + hud_divider_height + 103:vstart + hud_divider_height + 109, hend + 80:hend + 83] = 255
+    pixel_array[vstart + hud_divider_height + 109:vstart + hud_divider_height + 112, hend + 83:hend + 92] = 255
+    
 
     # ones digit
-    pixel_array[vstart + 360:vstart + 363, hend + 103:hend + 112] = 255
-    pixel_array[vstart + 363:vstart + 369, hend + 112:hend + 115] = 255
-    pixel_array[vstart + 372:vstart + 378, hend + 112:hend + 115] = 255
-    pixel_array[vstart + 378:vstart + 381, hend + 103:hend + 112] = 255
-    pixel_array[vstart + 372:vstart + 378, hend + 100:hend + 103] = 255
-    pixel_array[vstart + 363:vstart + 369, hend + 100:hend + 103] = 255
-    pixel_array[vstart + 369:vstart + 372, hend + 103:hend + 112] = 255
+    pixel_array[vstart + hud_divider_height + 100:vstart + hud_divider_height + 103, hend + 103:hend + 112] = 255
+    pixel_array[vstart + hud_divider_height + 103:vstart + hud_divider_height + 109, hend + 112:hend + 115] = 255
+    pixel_array[vstart + hud_divider_height + 112:vstart + hud_divider_height + 118, hend + 112:hend + 115] = 255
+    pixel_array[vstart + hud_divider_height + 118:vstart + hud_divider_height + 121, hend + 103:hend + 112] = 255
+    pixel_array[vstart + hud_divider_height + 112:vstart + hud_divider_height + 118, hend + 100:hend + 103] = 255
+    pixel_array[vstart + hud_divider_height + 103:vstart + hud_divider_height + 109, hend + 100:hend + 103] = 255
+    pixel_array[vstart + hud_divider_height + 109:vstart + hud_divider_height + 112, hend + 103:hend + 112] = 255
     
     # draw frames
-    pixel_array[vstart - side - space - 5:vstart - side - space, hstart - side - space - 5:hend + 160] = 255
-    pixel_array[vend + side + space:vend + side + space + 5, hstart - side - space - 5:hend + 160] = 255
+    pixel_array[vstart - side - space - 5:vstart - side - space, hstart - side - space - 5:hend + hud_width] = 255
+    pixel_array[vend + side + space:vend + side + space + 5, hstart - side - space - 5:hend + hud_width + 5] = 255
+    pixel_array[vstart + hud_divider_height:vstart + hud_divider_height + 5, hend + side + space:hend + hud_width + 5] = 255
     pixel_array[vstart - side - space - 5:vend + side + space, hstart - side - space - 5:hstart - side - space] = 255
     pixel_array[vstart - side - space - 5:vend + side + space, hend + side + space:hend + side + space + 5] = 255
-    pixel_array[vstart - side - space - 5:vend + side + space + 5, hend + 160:hend + 165] = 255
-    pixel_array[vstart + 260:vstart + 265, hend + side + space:hend + 165] = 255
+    pixel_array[vstart - side - space - 5:vend + side + space, hend + hud_width:hend + hud_width + 5] = 255
+    
 
     pixel_array[vstart - 6:vstart - 1, hstart - 6:hend + 6] = 255
     pixel_array[vend + 1:vend + 6, hstart - 6:hend + 6] = 255
@@ -183,7 +189,7 @@ def design():
 def testbench():
 
     # open output file generated by the VHDL simulation
-    with open("[insert filename]", 'r') as f:
+    with open(r"C:\Users\alexc\OneDrive\Desktop\tetris\project_1\project_1.sim\sim_1\behav\output.txt", 'r') as f:
         results = f.readlines()
         results = [s.rstrip() for s in results]
 
@@ -194,7 +200,7 @@ def testbench():
         pygame.display.set_caption(f"Test Case {i+1}")
 
         # parse the results from a string into a 480 x 640 array
-        pixel_array = np.array(list(results[i].replace('U', '1')), dtype=int).reshape(480, 640)
+        pixel_array = np.array(list(results[i].replace('U', '1').replace('X', '0')), dtype=int).reshape(480, 640)
         # multiply by 255 so high bits on the output are white
         pixel_array = pixel_array * 255
         # flip the array so it displays correctly
@@ -214,4 +220,4 @@ def testbench():
         pygame.quit()
 
 if __name__ == "__main__":
-    design()
+    testbench()
