@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="Board_TB_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="Board_TB" />
+            <top_module name="utilities" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="0.000 ns"></ZoomStartTime>
+      <ZoomEndTime time="907.667 ns"></ZoomEndTime>
+      <Cursor1Time time="150.000 ns"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="276"></NameColumnWidth>
+      <ValueColumnWidth column_width="80"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="21" />
+   <wvobject fp_name="/Board_TB/clk" type="logic">
+      <obj_property name="ElementShortName">clk</obj_property>
+      <obj_property name="ObjectShortName">clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/game_clk" type="logic">
+      <obj_property name="ElementShortName">game_clk</obj_property>
+      <obj_property name="ObjectShortName">game_clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/nReset" type="logic">
+      <obj_property name="ElementShortName">nReset</obj_property>
+      <obj_property name="ObjectShortName">nReset</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/hundreds" type="array">
+      <obj_property name="ElementShortName">hundreds[6:0]</obj_property>
+      <obj_property name="ObjectShortName">hundreds[6:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/tens" type="array">
+      <obj_property name="ElementShortName">tens[6:0]</obj_property>
+      <obj_property name="ObjectShortName">tens[6:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/ones" type="array">
+      <obj_property name="ElementShortName">ones[6:0]</obj_property>
+      <obj_property name="ObjectShortName">ones[6:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/game_board" type="array">
+      <obj_property name="ElementShortName">game_board[0:19][0:9]</obj_property>
+      <obj_property name="ObjectShortName">game_board[0:19][0:9]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/game_board_cleared" type="array">
+      <obj_property name="ElementShortName">game_board_cleared[0:19][0:9]</obj_property>
+      <obj_property name="ObjectShortName">game_board_cleared[0:19][0:9]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/vga_output" type="logic">
+      <obj_property name="ElementShortName">vga_output</obj_property>
+      <obj_property name="ObjectShortName">vga_output</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/END_SIM" type="other">
+      <obj_property name="ElementShortName">END_SIM</obj_property>
+      <obj_property name="ObjectShortName">END_SIM</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/LineClear/ScoreKeeper/score" type="other">
+      <obj_property name="ElementShortName">score</obj_property>
+      <obj_property name="ObjectShortName">score</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/output_state" type="other">
+      <obj_property name="ElementShortName">output_state</obj_property>
+      <obj_property name="ObjectShortName">output_state</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/next_block" type="array">
+      <obj_property name="ElementShortName">next_block[2:0]</obj_property>
+      <obj_property name="ObjectShortName">next_block[2:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/curr_block" type="array">
+      <obj_property name="ElementShortName">curr_block[2:0]</obj_property>
+      <obj_property name="ObjectShortName">curr_block[2:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/GameControlFSM/game_rise" type="logic">
+      <obj_property name="ElementShortName">game_rise</obj_property>
+      <obj_property name="ObjectShortName">game_rise</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/gen_block_en" type="logic">
+      <obj_property name="ElementShortName">gen_block_en</obj_property>
+      <obj_property name="ObjectShortName">gen_block_en</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/GameControlFSM/gen_rise" type="logic">
+      <obj_property name="ElementShortName">gen_rise</obj_property>
+      <obj_property name="ObjectShortName">gen_rise</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/done_gen" type="logic">
+      <obj_property name="ElementShortName">done_gen</obj_property>
+      <obj_property name="ObjectShortName">done_gen</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/done_fall" type="logic">
+      <obj_property name="ElementShortName">done_fall</obj_property>
+      <obj_property name="ObjectShortName">done_fall</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/done_place" type="logic">
+      <obj_property name="ElementShortName">done_place</obj_property>
+      <obj_property name="ObjectShortName">done_place</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/done_score" type="logic">
+      <obj_property name="ElementShortName">done_score</obj_property>
+      <obj_property name="ObjectShortName">done_score</obj_property>
+   </wvobject>
+</wave_config>

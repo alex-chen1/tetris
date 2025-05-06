@@ -1,45 +1,27 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
+use work.utilities.all;
 
 entity board is
-    generic (
-        screen_x            :   integer := 640;
-        screen_y            :   integer := 480;
-        rows                :   integer := 20;
-        cols                :   integer := 10;
-        block_size          :   integer := 18;
-        space               :   integer := 2;
-        hud_width           :   integer := 160;
-        hud_div_height      :   integer := 260;
-        new_block_x_offset  :   integer := 50;
-        new_block_y_offset  :   integer := 120
-    );
     Port (
         nReset      :   in std_logic;
         r           :   in std_logic_vector(8 downto 0);
         c           :   in std_logic_vector(9 downto 0);
         block_type  :   in STD_LOGIC_VECTOR(2 downto 0);
         clk         :   in std_logic;
+        hundreds    :   in std_logic_vector(6 downto 0);
+        tens        :   in std_logic_vector(6 downto 0);
+        ones        :   in std_logic_vector(6 downto 0);
+        game_board  :   in boardSize;
         vga_output  :   out std_logic
     );
 end board;
 
 architecture Behavioral of board is
-
-    constant tetrominoes_size   :   integer := 4;
-
-    -- define custom data type based on the dimensions of the monitor
-    type monitorSize is array(0 to screen_y - 1) of std_logic_vector(0 to screen_x - 1);
-    type boardSize is array(0 to rows - 1) of std_logic_vector(0 to cols - 1);
-    type newBlockSize is array(0 to tetrominoes_size - 1) of std_logic_vector(0 to tetrominoes_size - 1);
+    
     signal display              :   monitorSize := (others => (others => '0'));
-    signal board                :   boardSize := (3 => (others => '0'), others => (others => '1'));
     signal new_block            :   newBlockSize := (others => (others => '0'));
-    signal new_block_type       :   std_logic_vector(2 downto 0);
-    signal hundreds             :   std_logic_vector(6 downto 0);
-    signal tens                 :   std_logic_vector(6 downto 0);
-    signal ones                 :   std_logic_vector(6 downto 0);
     
     constant vstart             :   integer := (screen_y - rows * (block_size + space)) / 2;
     constant hstart             :   integer := (screen_x - cols * (block_size + space) - hud_width) / 2;
@@ -53,7 +35,7 @@ begin
     GameBoardRows : for i in 0 to rows - 1 generate
         RowFill: for j in 0 to block_size - 1 generate
             GameBoardCols : for k in 0 to cols - 1 generate
-                display(vstart + i * (block_size + space) + j + space / 2)(hstart + k * (block_size + space) + space / 2 to hstart + k * (block_size + space) + block_size + space / 2) <= (others => board(i)(k));
+                display(vstart + i * (block_size + space) + j + space / 2)(hstart + k * (block_size + space) + space / 2 to hstart + k * (block_size + space) + block_size + space / 2) <= (others => game_board(i)(k));
             end generate GameBoardCols;
         end generate RowFill;
     end generate GameBoardRows;
@@ -288,7 +270,7 @@ begin
             when "011" =>
                 new_block(0) <= (others => '0');
                 new_block(1) <= (0 => '0', others => '1');
-                new_block(2) <= (0 => '1', others => '0');
+                new_block(2) <= (1 => '1', others => '0');
                 new_block(3) <= (others => '0');
             when "100" =>
                 new_block(0) <= (others => '0');

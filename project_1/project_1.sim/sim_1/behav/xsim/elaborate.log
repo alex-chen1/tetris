@@ -13,9 +13,12 @@ Compiling package std.textio
 Compiling package ieee.std_logic_1164
 Compiling package ieee.numeric_std
 Compiling package ieee.std_logic_textio
-Compiling architecture behavioral of entity xil_defaultlib.board [board_default]
+Compiling package xil_defaultlib.utilities
 Compiling architecture dataflow of entity xil_defaultlib.block_generator [block_generator_default]
 Compiling architecture behavioral of entity xil_defaultlib.score_keeper [score_keeper_default]
+Compiling architecture behavioral of entity xil_defaultlib.line_clear [line_clear_default]
+Compiling architecture behavioral of entity xil_defaultlib.block_memory [block_memory_default]
+Compiling architecture behavioral of entity xil_defaultlib.game_control_FSM [game_control_fsm_default]
 Compiling architecture structural of entity xil_defaultlib.week421 [week421_default]
 Compiling architecture tb_architecture of entity xil_defaultlib.board_tb
 Built simulation snapshot Board_TB_behav

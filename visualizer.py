@@ -200,9 +200,9 @@ def testbench():
         pygame.display.set_caption(f"Test Case {i+1}")
 
         # parse the results from a string into a 480 x 640 array
-        pixel_array = np.array(list(results[i].replace('U', '1').replace('X', '0')), dtype=int).reshape(480, 640)
+        pixel_array = np.array(list(results[i].replace('U', '2')), dtype=int).reshape(480, 640)
         # multiply by 255 so high bits on the output are white
-        pixel_array = pixel_array * 255
+        pixel_array = pixel_array * 100
         # flip the array so it displays correctly
         pixel_array = pixel_array.T
         
