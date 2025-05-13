@@ -1,50 +1,1126 @@
+----------------------------------------------------------------------------
+--
+--  Falling Block: Module for the TETRIS game's falling block (block in play)
+--
+--  This module handles the left, right, rotate, and instantly place inputs
+--  and accordingly moves the current block that falls. The module takes in
+--  an array with the current game board and handles collision detection
+--  when processing the inputs.
+--
+--  Revision History:
+--  5/1/25  Alex Chen       Initial revision
+--  5/2/25  Alex Chen       Added processing for left, right, place inputs
+--  5/5/25  Alex Chen       Added processing for up (rotate) input
+--  5/9/25  Alex Chen       Added wall kicking for rotations
+--  5/12/25 Alex Chen       Adjusted some signals to be synced with clk
+--
+--  TODO:
+--  handle game over (block spawns and overflows)
+--  when block falls, have a different case for rotations
+----------------------------------------------------------------------------
+
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use work.utilities.all;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- need to draw fall board borders, draw walls and floor of 1
 entity falling_block is
     Port (
-        block_type      :   in std_logic_vector(2 downto 0);
-        new_fall        :   in std_logic;
-        clk             :   in std_logic;
-        game_clk        :   in std_logic;
-        left            :   in std_logic;
-        right           :   in std_logic;
-        up              :   in std_logic;
-        place           :   in std_logic;
-        finished        :   out std_logic;
-        game_board      :   inout boardSize;
-        fall_board      :   inout boardSize
+        block_type      :   in std_logic_vector(2 downto 0);    -- signal to
+        new_fall        :   in std_logic;                       -- start a new block and its fall
+        clk             :   in std_logic;                       -- 8 MHz clock
+        game_clk        :   in std_logic;                       -- 60 Hz clock, corresponds to monitor refresh rate
+        left            :   in std_logic;                       -- move the falling block left
+        right           :   in std_logic;                       -- move the falling block right
+        up              :   in std_logic;                       -- rotate the falling block clockwise
+        place           :   in std_logic;                       -- instantly place the falling block
+        finished        :   out std_logic;                      -- block is done falling and has been placed
+        game_board      :   in boardSize;                       -- array with all the game board spaces that contain a placed block
+        fall_board      :   buffer boardSize                    -- array with all the game board spaces that contain the falling block
     );
 end falling_block;
 
 architecture Behavioral of falling_block is
 
-constant xstart : integer := 0;
-constant ystart : integer := cols / 2 - 1;
-signal x : integer range 0 to rows - 1;
-signal y : integer range 0 to cols - 1;
-signal rot : integer range 0 to 3;
-signal can_left : boolean;
-signal can_right : boolean;
-signal can_rot : boolean;
-signal game_board_buffer : boardWBufferSize := (others => (others => '1'));
+constant xstart : integer := 0;                                                 -- starting x coordinate (row) of the falling block
+constant ystart : integer := cols / 2 - 1;                                      -- starting y coordinate (column), center column tie broken to the left, of the falling block
+signal x : integer range 0 to rows - 1;                                         -- x coordinate (row)
+signal y : integer range 0 to cols - 1;                                         -- y coordinate (column)
+signal rot : integer range 0 to 3;                                              -- rotation state of the falling block
+signal game_board_buffer : boardWBufferSize := (others => (others => '1'));     -- game board extended with a 3 block margin of 1s on each side
+signal game_clk_sync : std_logic_vector(1 downto 0);                            -- synced game clock signal
+signal left_sync : std_logic_vector(1 downto 0);                                -- synced left input signal
+signal right_sync : std_logic_vector(1 downto 0);                               -- synced right input signal
+signal up_sync : std_logic_vector(1 downto 0);                                  -- synced up input signal
+signal place_sync : std_logic_vector(1 downto 0);                               -- synced place signal
 
 begin
 
-GameBoardMap : for i in 0 to rows - 1 generate
-    game_board_buffer(i)(0 to cols - 1) <= game_board(i);
+-- map the game board to the game_board_buffer
+GameBoardMap : for i in 0 + 3 to rows - 1 + 3 generate
+    game_board_buffer(i)(0 + 3 to cols - 1 + 3) <= game_board(i - 3);
 end generate GameBoardMap;
 
 process(clk)
+-- declare variables to indicate whether or not we can move left, right, or rotate after collision detection
+variable can_left : boolean := false;
+variable can_right : boolean := false;
+variable can_rot : boolean := false;
 begin
     if rising_edge(clk) then
-        if rising_edge(new_fall) then
+        -- if the place_sync signal is rising, then place the block
+        if place_sync = "01" then
+            case block_type is
+                -- for each block type, while the neighboring squares below it are empty, move it down
+                when "001" =>
+                    while game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 2 + 3) = "0000" loop
+                        x <= x + 1;
+                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                    end loop;
+                when "010" => 
+                    while game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 1 + 3) = "000" loop
+                        x <= x + 1;
+                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                    end loop;
+                when "011" =>
+                    while game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 1 + 3) = "000" loop
+                        x <= x + 1;
+                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                    end loop;
+                when "100" =>
+                    while game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' loop
+                        x <= x + 1;
+                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                    end loop;
+                when "101" =>
+                    while game_board_buffer(x + 1 + 3)(y + 3 to y + 1 + 3) = "00" loop
+                        x <= x + 1;
+                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                    end loop;
+                when "110" =>
+                    while game_board_buffer(x + 2 + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' loop
+                        x <= x + 1;
+                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                    end loop;
+                when "111" =>
+                    while game_board_buffer(x + 2 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' loop
+                        x <= x + 1;
+                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                    end loop;
+                when others =>
+            end case;
+        else
+            -- if the left_sync signal is rising
+            if left_sync = "01" then
+                -- initially assume we cannot shift left
+                can_left := false;
+                case block_type is
+                    -- for each block type
+                        -- for each rotation
+                            -- if the neighboring squares to the left of the block are empty, set can_left to true
+                    when "001" =>
+                        case rot is
+                            when 0 =>
+                                if game_board_buffer(x + 3)(y - 2 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 1 =>
+                                if game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y + 3) = '0' and game_board_buffer(x + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 2 =>
+                                if game_board_buffer(x + 1 + 3)(y - 2 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 3 =>
+                                if game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x - 1 + 3)(y + 3) = '0' and game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x - 1 + 3)(y + 2 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                        end case;
+                    when "010" => 
+                        case rot is
+                            when 0 =>
+                                if game_board_buffer(x + 3)(y - 2 + 3) = '0' and game_board_buffer(x - 1 + 3)(y - 2 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 1 =>
+                                if game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 2 =>
+                                if game_board_buffer(x + 3)(y - 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 3 =>
+                                if game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 2 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                        end case;
+                    when "011" =>
+                        case rot is
+                            when 0 =>
+                                if game_board_buffer(x + 3)(y - 2 + 3) = '0' and game_board_buffer(x - 1 + 3)(y + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 1 =>
+                                if game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 2 =>
+                                if game_board_buffer(x + 3)(y - 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 2 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 3 =>
+                                if game_board_buffer(x - 1 + 3)(y - 2 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                        end case;
+                    when "100" =>
+                        case rot is
+                            when 0 =>
+                                if game_board_buffer(x + 3)(y - 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 1 =>
+                                if game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 2 =>
+                                if game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 2 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 3 =>
+                                if game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                        end case;
+                    when "101" =>
+                        if game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                            can_left := true;
+                        end if;
+                    when "110" =>
+                        case rot is
+                            when 0 =>
+                                if game_board_buffer(x + 3)(y - 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 1 =>
+                                if game_board_buffer(x - 1 + 3)(y + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 2 =>
+                                if game_board_buffer(x + 3)(y - 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 3 =>
+                                if game_board_buffer(x - 1 + 3)(y + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                        end case;
+                    when "111" =>
+                        case rot is
+                            when 0 =>
+                                if game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 2 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 1 =>
+                                if game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 2 =>
+                                if game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 2 + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                            when 3 =>
+                                if game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 3) = '0' then
+                                    can_left := true;
+                                end if;
+                        end case;
+                    when others =>
+                end case;
+                
+                -- if the block can shift left, then shift it and update the y coordinate
+                if can_left then
+                    y <= y - 1;
+                    for i in 0 to rows - 1 loop
+                        fall_board(i) <= fall_board(i)(1 to cols - 1) & fall_board(i)(0);
+                    end loop;
+                end if;
+                
+            -- if the right_sync signal is rising
+            elsif right_sync = "01" then
+                -- initally assume we cannot shift right
+                can_right := false;
+                case block_type is
+                    -- for each block type
+                        -- for each rotation
+                            -- if the neighboring squares to the right of the block are empty, set can_left to true
+                    when "001" =>
+                        case rot is
+                            when 0 =>
+                                if game_board_buffer(x + 3)(y + 3 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 1 =>
+                                if game_board_buffer(x - 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 2 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 2 =>
+                                if game_board_buffer(x + 1)(y + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 3 =>
+                                if game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 1 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                        end case;
+                    when "010" => 
+                        case rot is
+                            when 0 =>
+                                if game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x - 1 + 3)(y + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 1 =>
+                                if game_board_buffer(x - 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 2 =>
+                                if game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 2 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 3 =>
+                                if game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x)(y + 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                        end case;
+                    when "011" =>
+                        case rot is
+                            when 0 =>
+                                if game_board_buffer(x - 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 1 =>
+                                if game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 2 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 2 =>
+                                if game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 3 =>
+                                if game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                        end case;
+                    when "100" =>
+                        case rot is
+                            when 0 =>
+                                report "made it here";
+                                report boolean'image(game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0');
+                                if game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 1 =>
+                                if game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 2 =>
+                                if game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 3 =>
+                                if game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                        end case;
+                    when "101" =>
+                        if game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 2 + 3) = '0' then
+                            can_right := true;
+                        end if;
+                    when "110" =>
+                        case rot is
+                            when 0 =>
+                                if game_board_buffer(x + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 2 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 1 =>
+                                if game_board_buffer(x - 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 2 =>
+                                if game_board_buffer(x + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 2 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 3 =>
+                                if game_board_buffer(x - 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                        end case;
+                    when "111" =>
+                        case rot is
+                            when 0 =>
+                                if game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 1 =>
+                                if game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 2 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 2 =>
+                                if game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                            when 3 =>
+                                if game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 2 + 3) = '0' then
+                                    can_right := true;
+                                end if;
+                        end case;
+                    when others =>
+                end case;
+                
+                -- if the block can shift right, then shift it and update the y coordinate
+                if can_right then
+                    report "running can right code";
+                    y <= y + 1;
+                    for i in 0 to rows - 1 loop
+                        fall_board(i) <= fall_board(i)(cols - 1) & fall_board(i)(0 to cols - 2);
+                    end loop;
+                end if;
+            end if;
+            
+            -- if the up_sync signal is rising
+            if up_sync = "01" then
+                -- initially assume we cannot rotate
+                can_rot := false;
+                case block_type is
+                    -- for each block type
+                        -- for each rotation
+                            -- check if the image of the rotation is empty on game_board_buffer
+                            -- also check up to 4 more displacements of the rotation, this is called "wall kicking"
+                            -- if any of the displacements are empty on game_borad_buffer, rotate the fall_board block accordingly and mark can_rot as true
+                    when "001" =>
+                        case rot is
+                            when 0 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y + 1) <= '1';
+                                    fall_board(x)(y + 1) <= '1';
+                                    fall_board(x + 1)(y + 1) <= '1';
+                                    fall_board(x + 2)(y + 1) <= '1';
+                                    can_rot := true;
+                                -- (0, -2)
+                                elsif game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y - 1) <= '1';
+                                    fall_board(x)(y - 1) <= '1';
+                                    fall_board(x + 1)(y - 1) <= '1';
+                                    fall_board(x + 2)(y - 1) <= '1';
+                                    can_rot := true;
+                                -- (0, 1)
+                                elsif game_board_buffer(x - 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 2 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y + 2) <= '1';
+                                    fall_board(x)(y + 2) <= '1';
+                                    fall_board(x + 1)(y + 2) <= '1';
+                                    fall_board(x + 2)(y + 2) <= '1';
+                                    can_rot := true;
+                                -- (1, -2)
+                                elsif game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y - 1) <= '1';
+                                    fall_board(x + 1)(y - 1) <= '1';
+                                    fall_board(x + 2)(y - 1) <= '1';
+                                    fall_board(x + 3)(y - 1) <= '1';
+                                    can_rot := true;
+                                -- (-2, 1)
+                                elsif game_board_buffer(x - 3 + 3)(y + 2 + 3) = '0' and game_board_buffer(x - 2 + 3)(y + 2 + 3) = '0' and game_board_buffer(x - 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 3)(y + 2) <= '1';
+                                    fall_board(x - 2)(y + 2) <= '1';
+                                    fall_board(x - 1)(y + 2) <= '1';
+                                    fall_board(x)(y + 2) <= '1';
+                                    can_rot := true;
+                                end if;
+                            when 1 =>
+                                -- (0, 0)
+                                if game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 2 + 3) = "0000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y - 1 to y + 2) <= (others => '1');
+                                    can_rot := true;
+                                -- (0, -1)
+                                elsif game_board_buffer(x + 1 + 3)(y - 2 + 3 to y + 1 + 3) = "0000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y - 2 to y + 1) <= (others => '1');
+                                    can_rot := true;
+                                -- (0, 2)
+                                elsif game_board_buffer(x + 1 + 3)(y + 1 + 3 to y + 4 + 3) = "0000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y + 1 to y + 4) <= (others => '1');
+                                    can_rot := true;
+                                -- (-2, -1)
+                                elsif game_board_buffer(x - 1 + 3)(y - 2 + 3 to y + 1 + 3) = "0000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y - 2 to y + 1) <= (others => '1');
+                                    can_rot := true;
+                                -- (1, 2)
+                                elsif game_board_buffer(x + 2 + 3)(y + 1 + 3 to y + 4 + 3) = "0000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 2)(y + 1 to y + 4) <= (others => '1');
+                                    can_rot := true;
+                                end if;
+                            when 2 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y + 3) = '0' and game_board_buffer(x + 3)(y + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y) <= '1';
+                                    fall_board(x)(y) <= '1';
+                                    fall_board(x + 1)(y) <= '1';
+                                    fall_board(x + 2)(y) <= '1';
+                                    can_rot := true;
+                                -- (0, 2)
+                                elsif game_board_buffer(x - 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 2 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y + 2) <= '1';
+                                    fall_board(x)(y + 2) <= '1';
+                                    fall_board(x + 1)(y + 2) <= '1';
+                                    fall_board(x + 2)(y + 2) <= '1';
+                                    can_rot := true;
+                                -- (0, -1)
+                                elsif game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y - 1) <= '1';
+                                    fall_board(x)(y - 1) <= '1';
+                                    fall_board(x + 1)(y - 1) <= '1';
+                                    fall_board(x + 2)(y - 1) <= '1';
+                                    can_rot := true;
+                                -- (-1, 2)
+                                elsif game_board_buffer(x - 2 + 3)(y + 2 + 3) = '0' and game_board_buffer(x - 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 2 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y + 2) <= '1';
+                                    fall_board(x - 1)(y + 2) <= '1';
+                                    fall_board(x)(y + 2) <= '1';
+                                    fall_board(x + 1)(y + 2) <= '1';
+                                    can_rot := true;
+                                -- (2, -1)
+                                elsif game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 4 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y - 1) <= '1';
+                                    fall_board(x + 2)(y - 1) <= '1';
+                                    fall_board(x + 3)(y - 1) <= '1';
+                                    fall_board(x + 4)(y - 1) <= '1';
+                                    can_rot := true;
+                                end if;
+                            when 3 =>
+                                -- (0, 0)
+                                if game_board_buffer(x + 3)(y - 1 to y + 2 + 3) = "0000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y - 1 to y + 2) <= (others => '1');
+                                    can_rot := true;
+                                -- (0, 1)
+                                elsif game_board_buffer(x + 3)(y + 3 to y + 3 + 3) = "0000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y to y + 3) <= (others => '1');
+                                    can_rot := true;
+                                -- (0, -2)
+                                elsif game_board_buffer(x + 3)(y - 3 + 3 to y + 3) = "0000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y - 3 to y) <= (others => '1');
+                                    can_rot := true;
+                                -- (2, 1)
+                                elsif game_board_buffer(x + 2 + 3)(y to y + 3 + 3) = "0000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 2)(y to y + 3) <= (others => '1');
+                                    can_rot := true;
+                                -- (-1, -2)
+                                elsif game_board_buffer(x - 1 + 3)(y - 3 + 3 to y + 3) = "0000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y - 3 to y) <= (others => '1');
+                                    can_rot := true;
+                                end if;
+                        end case;
+                    when "010" => 
+                        case rot is
+                            when 0 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x + 3)(y + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y to y + 1) <= "11";
+                                    fall_board(x)(y) <= '1';
+                                    fall_board(x + 1)(y) <= '1';
+                                    can_rot := true;
+                                -- (0, -1)
+                                elsif game_board_buffer(x - 1 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y - 1 to y) <= "11";
+                                    fall_board(x)(y - 1) <= '1';
+                                    fall_board(x + 1)(y - 1) <= '1';
+                                    can_rot := true;
+                                -- (-1, -1)
+                                elsif game_board_buffer(x - 2 + 3)(y - 1 to y + 3) = "00" and game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y - 1 to y) <= "11";
+                                    fall_board(x - 1)(y - 1) <= '1';
+                                    fall_board(x)(y - 1) <= '1';
+                                    can_rot := true;
+                                -- (2, 0)
+                                elsif game_board_buffer(x + 1 + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x + 2 + 3)(y + 3) = '0' and game_board_buffer(x + 3 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y to y + 1) <= "11";
+                                    fall_board(x + 2)(y) <= '1';
+                                    fall_board(x + 3)(y) <= '1';
+                                    can_rot := true;
+                                -- (2, -1)
+                                elsif game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 2 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y - 1 to y) <= "11";
+                                    fall_board(x + 2)(y - 1) <= '1';
+                                    fall_board(x + 3)(y - 1) <= '1';
+                                    can_rot := true;
+                                end if;
+                            when 1 =>
+                                -- (0, 0)
+                                if game_board_buffer(x)(y - 1 + 3 to y + 1 + 3) = "111" and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '1' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y - 1 to y + 1) <= (others => '1');
+                                    fall_board(x + 1)(y + 1) <= '1';
+                                    can_rot := true;
+                                -- (0, 1)
+                                elsif game_board_buffer(x + 3)(y + 3 to y + 2 + 3) = "111" and game_board_buffer(x + 1 + 3)(y + 2 + 3) = '1' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y to y + 2) <= (others => '1');
+                                    fall_board(x + 1)(y + 2) <= '1';
+                                    can_rot := true;
+                                -- (1, 1)
+                                elsif game_board_buffer(x + 1 + 3)(y + 3 to y + 2 + 3) = "111" and game_board_buffer(x + 2 + 3)(y + 2 + 3) = '1' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y to y + 2) <= (others => '1');
+                                    fall_board(x + 2)(y + 2) <= '1';
+                                    can_rot := true;
+                                -- (-2, 0)
+                                elsif game_board_buffer(x - 2 + 3)(y - 1 + 3 to y + 1 + 3) = "111" and game_board_buffer(x - 1 + 3)(y + 1 + 3) = '1' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y - 1 to y + 1) <= (others => '1');
+                                    fall_board(x - 1)(y + 1) <= '1';
+                                    can_rot := true;
+                                -- (-2, 1)
+                                elsif game_board_buffer(x - 2 + 3)(y to y + 2 + 3) = "111" and game_board_buffer(x - 1 + 3)(y + 2 + 3) = '1' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y to y + 2) <= (others => '1');
+                                    fall_board(x - 1)(y + 2) <= '1';
+                                    can_rot := true;
+                                end if;
+                            when 2 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y + 3) = '0' and game_board_buffer(x + 3)(y + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 to y + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y) <= '1';
+                                    fall_board(x)(y) <= '1';
+                                    fall_board(x + 1)(y - 1 to y) <= "11";
+                                    can_rot := true;
+                                -- (0, 1)
+                                elsif game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 3 to y + 1 + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y + 1) <= '1';
+                                    fall_board(x)(y + 1) <= '1';
+                                    fall_board(x + 1)(y to y + 1) <= "11";
+                                    can_rot := true;
+                                -- (-1, 1)
+                                elsif game_board_buffer(x - 2 + 3)(y + 1 + 3) = '0' and game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 3 to y + 1 + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y + 1) <= '1';
+                                    fall_board(x - 1)(y + 1) <= '1';
+                                    fall_board(x)(y to y + 1) <= "11";
+                                    can_rot := true;
+                                -- (2, 0)
+                                elsif game_board_buffer(x + 1 + 3)(y + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 3) = '0' and game_board_buffer(x + 3 + 3)(y - 1 + 3 to y + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y) <= '1';
+                                    fall_board(x + 2)(y) <= '1';
+                                    fall_board(x + 3)(y - 1 to y) <= "11";
+                                    can_rot := true;
+                                -- (2, 1)
+                                elsif game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3 + 3)(y + 3 to y + 1 + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y + 1) <= '1';
+                                    fall_board(x + 2)(y + 1) <= '1';
+                                    fall_board(x + 3)(y to y + 1) <= "11";
+                                    can_rot := true;
+                                end if;
+                            when 3 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x)(y - 1 + 3 to y + 1 + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y - 1) <= '1';
+                                    fall_board(x)(y - 1 to y + 1) <= "111";
+                                    can_rot := true;
+                                -- (0, -1)
+                                elsif game_board_buffer(x - 1 + 3)(y - 2 + 3) = '0' and game_board_buffer(x + 3)(y - 2 to y + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y - 2) <= '1';
+                                    fall_board(x)(y - 2 to y) <= "111";
+                                    can_rot := true;
+                                -- (1, -1)
+                                elsif game_board_buffer(x + 3)(y - 2 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 2 + 3 to y + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y - 2) <= '1';
+                                    fall_board(x + 1)(y - 2 to y) <= "111";
+                                    can_rot := true;
+                                -- (-2, 0)
+                                elsif game_board_buffer(x - 3 + 3)(y - 1 + 3) = '0' and game_board_buffer(x - 2 + 3)(y - 1 + 3 to y + 1 + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 3)(y - 1) <= '1';
+                                    fall_board(x - 2)(y - 1 to y + 1) <= "111";
+                                    can_rot := true;
+                                -- (-2, -1)
+                                elsif game_board_buffer(x - 3 + 3)(y - 2 + 3) = '0' and game_board_buffer(x - 2 + 3)(y - 2 + 3 to y + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 3)(y - 2) <= '1';
+                                    fall_board(x - 2)(y - 2 to y) <= "111";
+                                    can_rot := true;
+                                end if;
+                        end case;
+                    when "011" =>
+                        case rot is
+                            when 0 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y + 3) = '0' and game_board_buffer(x + 3)(y + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 3 to y + 1 + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y) <= '1';
+                                    fall_board(x)(y) <= '1';
+                                    fall_board(x + 1)(y to y + 1) <= "11";
+                                    can_rot := true;
+                                -- (0, -1)
+                                elsif game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y - 1) <= '1';
+                                    fall_board(x)(y - 1) <= '1';
+                                    fall_board(x + 1)(y - 1 to y) <= "11";
+                                    can_rot := true;
+                                -- (-1, -1)
+                                elsif game_board_buffer(x - 2 + 3)(y - 1 + 3) = '0' and game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3 to y + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y - 1) <= '1';
+                                    fall_board(x - 1)(y - 1) <= '1';
+                                    fall_board(x)(y - 1 to y) <= "11";
+                                    can_rot := true;
+                                -- (2, 0)
+                                elsif game_board_buffer(x + 1 + 3)(y + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 3) = '0' and game_board_buffer(x + 3 + 3)(y to y + 1 + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y) <= '1';
+                                    fall_board(x + 2)(y) <= '1';
+                                    fall_board(x + 3)(y to y + 1) <= "11";
+                                    can_rot := true;
+                                -- (2, -1)
+                                elsif game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3 + 3)(y - 1 + 3 to y + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y - 1) <= '1';
+                                    fall_board(x + 2)(y - 1) <= '1';
+                                    fall_board(x + 3)(y - 1 to y) <= "11";
+                                    can_rot := true;
+                                end if;
+                            when 1 =>
+                                -- (0, 0)
+                                if game_board_buffer(x + 3)(y - 1 + 3 to y + 1 + 3) = "000" and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y - 1 to y + 1) <= (others => '1');
+                                    fall_board(x + 1)(y - 1) <= '1';
+                                    can_rot := true;
+                                -- (0, 1)
+                                elsif game_board_buffer(x + 3)(y + 3 to y + 2 + 3) = "000" and game_board_buffer(x + 1 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y to y + 2) <= (others => '1');
+                                    fall_board(x + 1)(y) <= '1';
+                                    can_rot := true;
+                                -- (1, 1)
+                                elsif game_board_buffer(x + 1 + 3)(y + 3 to y + 2 + 3) = "000" and game_board_buffer(x + 2 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y to y + 2) <= (others => '1');
+                                    fall_board(x + 2)(y) <= '1';
+                                    can_rot := true;
+                                -- (-2, 0)
+                                elsif game_board_buffer(x - 2 + 3)(y - 1 + 3 to y + 1 + 3) = "000" and game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y - 1 to y + 1) <= (others => '1');
+                                    fall_board(x - 1)(y - 1) <= '1';
+                                    can_rot := true;
+                                -- (-2, 1)
+                                elsif game_board_buffer(x - 2 + 3)(y + 3 to y + 2 + 3) = "000" and game_board_buffer(x - 1 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y to y + 2) <= (others => '1');
+                                    fall_board(x - 1)(y) <= '1';
+                                    can_rot := true;
+                                end if;
+                            when 2 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 3)(y + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y - 1 to y) <= "11";
+                                    fall_board(x)(y) <= '1';
+                                    fall_board(x + 1)(y) <= '1';
+                                    can_rot := true;
+                                -- (0, 1)
+                                elsif game_board_buffer(x - 1 + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y to y + 1) <= "11";
+                                    fall_board(x)(y + 1) <= '1';
+                                    fall_board(x + 1)(y + 1) <= '1';
+                                    can_rot := true;
+                                -- (-1, 1)
+                                elsif game_board_buffer(x - 2 + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y to y + 1) <= "11";
+                                    fall_board(x - 1)(y + 1) <= '1';
+                                    fall_board(x)(y + 1) <= '1';
+                                    can_rot := true;
+                                -- (2, 0)
+                                elsif game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 2 + 3)(y + 3) = '0' and game_board_buffer(x + 3 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y - 1 to y) <= "11";
+                                    fall_board(x + 2)(y) <= '1';
+                                    fall_board(x + 3)(y) <= '1';
+                                    can_rot := true;
+                                -- (2, 1)
+                                elsif game_board_buffer(x + 1 + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x + 2 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3 + 3)(y + 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y to y + 1) <= "11";
+                                    fall_board(x + 2)(y + 1) <= '1';
+                                    fall_board(x + 3)(y + 1) <= '1';
+                                    can_rot := true;
+                                end if;
+                            when 3 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3 to y + 1 + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y + 1) <= '1';
+                                    fall_board(x)(y - 1 to y + 1) <= "111";
+                                    can_rot := true;
+                                -- (0, -1)
+                                elsif game_board_buffer(x - 1 + 3)(y + 3) = '0' and game_board_buffer(x + 3)(y - 2 + 3 to y + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y) <= '1';
+                                    fall_board(x)(y - 2 to y) <= "111";
+                                    can_rot := true;
+                                -- (1, -1)
+                                elsif game_board_buffer(x + 3)(y + 3) = '0' and game_board_buffer(x + 1 + 3)(y - 2 + 3 to y + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y) <= '1';
+                                    fall_board(x + 1)(y - 2 to y) <= "111";
+                                    can_rot := true;
+                                -- (-2, 0)
+                                elsif game_board_buffer(x - 3 + 3)(y + 1 + 3) = '0' and game_board_buffer(x - 2 + 3)(y - 1 + 3 to y + 1 + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 3)(y + 1) <= '1';
+                                    fall_board(x - 2)(y - 1 to y + 1) <= "111";
+                                    can_rot := true;
+                                -- (-2, -1)
+                                elsif game_board_buffer(x - 3 + 3)(y + 3) = '0' and game_board_buffer(x - 2 + 3)(y - 2 + 3 to y + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 3)(y) <= '1';
+                                    fall_board(x - 2)(y - 2 to y) <= "111";
+                                    can_rot := true;
+                                end if;
+                        end case;
+                    when "100" =>
+                        case rot is
+                            when 0 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 1 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y) <= '1';
+                                    fall_board(x)(y - 1 to y) <= "11";
+                                    fall_board(x + 1)(y) <= '1';
+                                    can_rot := true;
+                                -- (0, -1)
+                                elsif game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 3)(y - 2 + 3 to y - 1 + 3) = "00" and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y) <= '1';
+                                    fall_board(x)(y - 1 to y) <= "11";
+                                    fall_board(x + 1)(y) <= '1';
+                                    can_rot := true;
+                                -- (-1, -1)
+                                elsif game_board_buffer(x - 2 + 3)(y - 1 + 3) = '0' and game_board_buffer(x - 1 + 3)(y - 2 + 3 to y - 1 + 3) = "00" and game_board_buffer(x + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y) <= '1';
+                                    fall_board(x - 1)(y - 1 to y) <= "11";
+                                    fall_board(x)(y) <= '1';
+                                    can_rot := true;
+                                -- (2, 0)
+                                elsif game_board_buffer(x + 1 + 3)(y + 3) = '0' and game_board_buffer(x + 2 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 3 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y) <= '1';
+                                    fall_board(x + 2)(y - 1 to y) <= "11";
+                                    fall_board(x + 3)(y) <= '1';
+                                    can_rot := true;
+                                -- (2, -1)
+                                elsif game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y - 2 + 3 to y - 1 + 3) = "00" and game_board_buffer(x + 3 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y - 1) <= '1';
+                                    fall_board(x + 2)(y - 2 to y - 1) <= "11";
+                                    fall_board(x + 3)(y - 1) <= '1';
+                                    can_rot := true;
+                                end if;
+                            when 1 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3 to y + 1 + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y) <= '1';
+                                    fall_board(x)(y - 1 to y + 1) <= (others => '1');
+                                    can_rot := true;
+                                -- (0, 1)
+                                elsif game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 3 to y + 2 + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y + 1) <= '1';
+                                    fall_board(x)(y to y + 2) <= (others => '1');
+                                    can_rot := true;
+                                -- (1, 1)
+                                elsif game_board_buffer(x + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 3 to y + 2 + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y + 1) <= '1';
+                                    fall_board(x + 1)(y to y + 2) <= (others => '1');
+                                    can_rot := true;
+                                -- (-2, 0)
+                                elsif game_board_buffer(x - 3 + 3)(y + 3) = '0' and game_board_buffer(x - 2 + 3)(y - 1 + 3 to y + 1 + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 3)(y) <= '1';
+                                    fall_board(x - 2)(y - 1 to y + 1) <= (others => '1');
+                                    can_rot := true;
+                                -- (-2, 1)
+                                elsif game_board_buffer(x - 3 + 3)(y + 1 + 3) = '0' and game_board_buffer(x - 2 + 3)(y + 3 to y + 2 + 3) = "000" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 3)(y + 1) <= '1';
+                                    fall_board(x - 2)(y to y + 2) <= (others => '1');
+                                    can_rot := true;
+                                end if;
+                            when 2 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y + 3) = '0' and game_board_buffer(x + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x + 1 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y) <= '1';
+                                    fall_board(x)(y to y + 1) <= "11";
+                                    fall_board(x + 1)(y) <= '1';
+                                    can_rot := true;
+                                -- (0, 1)
+                                elsif game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 1 + 3 to y + 2 + 3) = "00" and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y + 1) <= '1';
+                                    fall_board(x)(y + 1 to y + 2) <= "11";
+                                    fall_board(x + 1)(y + 1) <= '1';
+                                    can_rot := true;
+                                -- (-1, 1)
+                                elsif game_board_buffer(x - 2 + 3)(y + 1 + 3) = '0' and game_board_buffer(x - 1 + 3)(y + 1 + 3 to y + 2 + 3) = "00" and game_board_buffer(x + 3)(y + 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y + 1) <= '1';
+                                    fall_board(x - 1)(y + 1 to y + 2) <= "11";
+                                    fall_board(x)(y + 1) <= '1';
+                                    can_rot := true;
+                                -- (2, 0)
+                                elsif game_board_buffer(x + 1 + 3)(y + 3) = '0' and game_board_buffer(x + 2 + 3)(y to y + 1 + 3) = "00" and game_board_buffer(x + 3 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y) <= '1';
+                                    fall_board(x + 2)(y to y + 1) <= "11";
+                                    fall_board(x + 3)(y) <= '1';
+                                    can_rot := true;
+                                -- (2, 1)
+                                elsif game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 1 + 3 to y + 2 + 3) = "00" and game_board_buffer(x + 3 + 3)(y + 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y + 1) <= '1';
+                                    fall_board(x + 2)(y + 1 to y + 2) <= "11";
+                                    fall_board(x + 3)(y + 1) <= '1';
+                                    can_rot := true;
+                                end if;
+                            when 3 =>
+                                -- (0, 0)
+                                if game_board_buffer(x + 3)(y - 1 + 3 to y + 1 + 3) = "000" and game_board_buffer(x + 1 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y - 1 to y + 1) <= (others => '1');
+                                    fall_board(x + 1)(y) <= '1';
+                                    can_rot := true;
+                                -- (0, -1)
+                                elsif game_board_buffer(x + 3)(y - 2 + 3 to y + 3) = "000" and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y - 2 to y) <= (others => '1');
+                                    fall_board(x + 1)(y - 1) <= '1';
+                                    can_rot := true;
+                                -- (1, -1)
+                                elsif game_board_buffer(x + 1 + 3)(y - 2 + 3 to y + 3) = "000" and game_board_buffer(x + 2 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y - 2 to y) <= (others => '1');
+                                    fall_board(x + 2)(y - 1) <= '1';
+                                    can_rot := true;
+                                -- (-2, 0)
+                                elsif game_board_buffer(x - 2 + 3)(y - 1 + 3 to y + 1 + 3) = "000" and game_board_buffer(x - 1 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y - 1 to y + 1) <= (others => '1');
+                                    fall_board(x - 1)(y) <= '1';
+                                    can_rot := true;
+                                -- (-2, -1)
+                                elsif game_board_buffer(x - 2 + 3)(y - 2 + 3 to y + 3) = "000" and game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y - 2 to y) <= (others => '1');
+                                    fall_board(x - 1)(y - 1) <= '1';
+                                    can_rot := true;
+                                end if;
+                        end case;
+                    when "101" =>
+                    when "110" =>
+                        case rot is
+                            when 0 | 2 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x + 1 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y + 1) <= '1';
+                                    fall_board(x)(y to y + 1) <= "11";
+                                    fall_board(x + 1)(y) <= '1';
+                                    can_rot := true;
+                                -- (0, -1)
+                                elsif game_board_buffer(x - 1 + 3)(y + 3) = '0' and game_board_buffer(x + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y) <= '1';
+                                    fall_board(x)(y - 1 to y) <= "11";
+                                    fall_board(x + 1)(y - 1) <= '1';
+                                    can_rot := true;
+                                -- (-1, -1)
+                                elsif game_board_buffer(x - 2 + 3)(y + 3) = '0' and game_board_buffer(x - 1 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 3)(y - 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y) <= '1';
+                                    fall_board(x - 1)(y - 1 to y) <= "11";
+                                    fall_board(x)(y - 1) <= '1';
+                                    can_rot := true;
+                                -- (2, 0)
+                                elsif game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x + 3 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y + 1) <= '1';
+                                    fall_board(x + 2)(y to y + 1) <= "11";
+                                    fall_board(x + 3)(y) <= '1';
+                                    can_rot := true;
+                                -- (2, 1)
+                                elsif game_board_buffer(x + 1 + 3)(y + 2 + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 1 + 3 to y + 2 + 3) = "00" and game_board_buffer(x + 3 + 3)(y + 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y + 2) <= '1';
+                                    fall_board(x + 2)(y + 1 to y + 2) <= "11";
+                                    fall_board(x + 3)(y + 1) <= '1';
+                                    can_rot := true;
+                                end if;
+                            when 1 | 3 =>
+                                -- (0, 0)
+                                if game_board_buffer(x + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 1 + 3)(y + 3 to y + 1 + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y - 1 to y) <= "00";
+                                    fall_board(x + 1)(y to y + 1) <= "00";
+                                    can_rot := true;
+                                -- (0, -1)
+                                elsif game_board_buffer(x + 3)(y - 2 + 3 to y - 1 + 3) = "00" and game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y - 2 to y - 1) <= "00";
+                                    fall_board(x + 1)(y - 1 to y) <= "00";
+                                    can_rot := true;
+                                -- (1, -1)
+                                elsif game_board_buffer(x + 1 + 3)(y - 2 + 3 to y - 1 + 3) = "00" and game_board_buffer(x + 2 + 3)(y - 1 + 3 to y + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y - 2 to y - 1) <= "00";
+                                    fall_board(x + 2)(y - 1 to y) <= "00";
+                                    can_rot := true;
+                                -- (-2, 0)
+                                elsif game_board_buffer(x - 2 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x - 1 + 3)(y + 3 to y + 1 + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y - 1 to y) <= "00";
+                                    fall_board(x - 1)(y to y + 1) <= "00";
+                                    can_rot := true;
+                                -- (-2, -1)
+                                elsif game_board_buffer(x - 2 + 3)(y - 2 + 3 to y - 1 + 3) = "00" and game_board_buffer(x - 1 + 3)(y - 1 + 3 to y + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y - 2 to y - 1) <= "00";
+                                    fall_board(x - 1)(y - 1 to y) <= "00";
+                                    can_rot := true;
+                                end if;
+                        end case;
+                    when "111" =>
+                        case rot is
+                            when 0 | 2 =>
+                                -- (0, 0)
+                                if game_board_buffer(x - 1 + 3)(y + 3) = '0' and game_board_buffer(x + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y) <= '1';
+                                    fall_board(x)(y to y + 1) <= (others => '1');
+                                    fall_board(x + 1)(y + 1) <= '1';
+                                    can_rot := true;
+                                -- (0, -1)
+                                elsif game_board_buffer(x - 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 1 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 1)(y - 1) <= '1';
+                                    fall_board(x)(y - 1 to y) <= (others => '1');
+                                    fall_board(x + 1)(y) <= '1';
+                                    can_rot := true;
+                                -- (-1, -1)
+                                elsif game_board_buffer(x - 2 + 3)(y - 1 + 3) = '0' and game_board_buffer(x - 1 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y - 1) <= '1';
+                                    fall_board(x - 1)(y - 1 to y) <= (others => '1');
+                                    fall_board(x)(y) <= '1';
+                                    can_rot := true;
+                                -- (2, 0)
+                                elsif game_board_buffer(x + 1 + 3)(y + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x + 3 + 3)(y + 1 + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y) <= '1';
+                                    fall_board(x + 2)(y to y + 1) <= (others => '1');
+                                    fall_board(x + 3)(y + 1) <= '1';
+                                    can_rot := true;
+                                -- (2, -1)
+                                elsif game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 3 + 3)(y + 3) = '0' then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y - 1) <= '1';
+                                    fall_board(x + 2)(y - 1 to y) <= (others => '1');
+                                    fall_board(x + 3)(y) <= '1';
+                                    can_rot := true;
+                                end if;
+                            when 1 | 3 =>
+                                -- (0, 0)
+                                if game_board_buffer(x + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y to y + 1) <= (others => '1');
+                                    fall_board(X + 1)(y - 1 to y) <= (others => '1');
+                                    can_rot := true;
+                                -- (0, -1)
+                                elsif game_board_buffer(x + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 1 + 3)(y - 2 + 3 to y - 1 + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x)(y - 1 to y) <= (others => '1');
+                                    fall_board(X + 1)(y - 2 to y - 1) <= (others => '1');
+                                    can_rot := true;
+                                -- (1, -1)
+                                elsif game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 2 + 3)(y - 2 + 3 to y - 1 + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x + 1)(y - 1 to y) <= (others => '1');
+                                    fall_board(X + 2)(y - 2 to y - 1) <= (others => '1');
+                                    can_rot := true;
+                                -- (-2, 0)
+                                elsif game_board_buffer(x - 2 + 3)(y to y + 1 + 3) = "00" and game_board_buffer(x - 1 + 3)(y - 1 + 3 to y + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y to y + 1) <= (others => '1');
+                                    fall_board(X - 1)(y - 1 to y ) <= (others => '1');
+                                    can_rot := true;
+                                -- (-2, -1)
+                                elsif game_board_buffer(x - 2 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x - 1 + 3)(y - 2 + 3 to y - 1 + 3) = "00" then
+                                    fall_board <= (others => (others => '0'));
+                                    fall_board(x - 2)(y - 1 to y) <= (others => '1');
+                                    fall_board(X - 1)(y - 2 to y - 1) <= (others => '1');
+                                    can_rot := true;
+                                end if;
+                        end case;
+                    when others =>
+                end case;
+                
+                -- if can_rot was true, update the rotation number of the block
+                if can_rot then
+                    rot <= (rot + 1) mod 4;
+                end if;
+            end if;
+        end if;
+    end if;
+    
+    -- if game_clk_sync is rising
+    if rising_edge(clk) and game_clk_sync = "01" then
+        -- if new_fall signal is 1, initialize fall_board based on the block type
+        if new_fall = '1' then
             fall_board <= (others => (others => '0'));
             rot <= 0;
             case block_type is
@@ -82,1085 +1158,76 @@ begin
                     fall_board(xstart + 1)(ystart - 1 to ystart + 1) <= (others => '1');
                     x <= xstart;
                     y <= ystart;
+                when others =>
             end case;
         end if;
-        
-        if rising_edge(place) then
-            case block_type is
-                when "001" =>
-                    while game_board_buffer(x + 1)(y - 1 to y + 2) = "0000" loop
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    end loop;
-                when "010" => 
-                    while game_board_buffer(x + 1)(y - 1 to y + 1) = "000" loop
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    end loop;
-                when "011" =>
-                    while game_board_buffer(x + 1)(y - 1 to y + 1) = "000" loop
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    end loop;
-                when "100" =>
-                    while game_board_buffer(x + 1)(y - 1) = '0' and game_board_buffer(x + 2)(y) = '0' and game_board_buffer(x + 1)(y + 1) = '0' loop
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    end loop;
-                when "101" =>
-                    while game_board_buffer(x + 1)(y to y + 1) = "00" loop
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    end loop;
-                when "110" =>
-                    while game_board_buffer(x + 2)(y to y + 1) = "00" and game_board_buffer(x + 1)(y - 1) = '0' loop
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    end loop;
-                when "111" =>
-                    while game_board_buffer(x + 2)(y - 1 to y) = "00" and game_board_buffer(x + 1)(y + 1) = '0' loop
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    end loop;
-            end case;
-        else
-            if rising_edge(left) then
-                -- check for collision, then shift left
-                can_left <= false;
-                case block_type is
-                when "001" =>
-                    case rot is
-                        when 0 =>
-                            if game_board_buffer(x)(y - 2) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 1 =>
-                            if game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x)(y) = '0' and game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x)(y + 2) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 2 =>
-                            if game_board_buffer(x + 1)(y - 2) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 3 =>
-                            if game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x - 1)(y) = '0' and game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x - 1)(y + 2) = '0' then
-                                can_left <= true;
-                            end if;
-                    end case;
-                when "010" => 
-                    case rot is
-                        when 0 =>
-                            if game_board_buffer(x)(y - 2) = '0' and game_board_buffer(x - 1)(y - 2) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 1 =>
-                            if game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 1) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 2 =>
-                            if game_board_buffer(x)(y - 2) = '0' and game_board_buffer(x + 1)(y) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 3 =>
-                            if game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 2) = '0' then
-                                can_left <= true;
-                            end if;
-                    end case;
-                when "011" =>
-                    case rot is
-                        when 0 =>
-                            if game_board_buffer(x)(y - 2) = '0' and game_board_buffer(x - 1)(y) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 1 =>
-                            if game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 1) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 2 =>
-                            if game_board_buffer(x)(y - 2) = '0' and game_board_buffer(x + 1)(y - 2) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 3 =>
-                            if game_board_buffer(x - 1)(y - 2) = '0' and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 1) = '0' then
-                                can_left <= true;
-                            end if;
-                    end case;
-                when "100" =>
-                    case rot is
-                        when 0 =>
-                            if game_board_buffer(x)(y - 2) = '0' and game_board_buffer(x + 1)(y - 1) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 1 =>
-                            if game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 2) = '0' and game_board_buffer(x + 1)(y - 1) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 2 =>
-                            if game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 2) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 3 =>
-                            if game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 1) = '0' then
-                                can_left <= true;
-                            end if;
-                    end case;
-                when "101" =>
-                    if game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 1) = '0' then
-                        can_left <= true;
-                    end if;
-                when "110" =>
-                    case rot is
-                        when 0 =>
-                            if game_board_buffer(x)(y - 2) = '0' and game_board_buffer(x + 1)(y - 1) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 1 =>
-                            if game_board_buffer(x - 1)(y) = '0' and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 1) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 2 =>
-                            if game_board_buffer(x)(y - 2) = '0' and game_board_buffer(x + 1)(y - 1) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 3 =>
-                            if game_board_buffer(x - 1)(y) = '0' and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 1) = '0' then
-                                can_left <= true;
-                            end if;
-                    end case;
-                when "111" =>
-                    case rot is
-                        when 0 =>
-                            if game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 2) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 1 =>
-                            if game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 2 =>
-                            if game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 2) = '0' then
-                                can_left <= true;
-                            end if;
-                        when 3 =>
-                            if game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y) = '0' then
-                                can_left <= true;
-                            end if;
-                    end case;
-                end case;
                 
-                if can_left then
-                    y <= y - 1;
-                    for i in 0 to rows - 1 loop
-                        fall_board(i) <= fall_board(i)(1 to cols - 1) & fall_board(i)(0);
-                    end loop;
+        -- each game clock, the block falls one square or is placed
+        case block_type is
+            when "001" =>
+                if game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 2 + 3) = "0000" then
+                    x <= x + 1;
+                    fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                else
+                    finished <= '1';
                 end if;
-                
-            elsif rising_edge(right) then
-                -- check for collision, then shift right
-                case block_type is
-                when "001" =>
-                    case rot is
-                        when 0 =>
-                            if game_board_buffer(x)(y + 3) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 1 =>
-                            if game_board_buffer(x - 1)(y + 2) = '0' and game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 2) = '0' and game_board_buffer(x + 2)(y + 2) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 2 =>
-                            if game_board_buffer(x + 1)(y + 3) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 3 =>
-                            if game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x + 1)(y + 1) = '0' and game_board_buffer(x + 2)(y + 1) = '0' then
-                                can_right <= true;
-                            end if;
-                    end case;
-                when "010" => 
-                    case rot is
-                        when 0 =>
-                            if game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x - 1)(y) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 1 =>
-                            if game_board_buffer(x - 1)(y + 2) = '0' and game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x + 1)(y + 1) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 2 =>
-                            if game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 2) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 3 =>
-                            if game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x + 1)(y + 1) = '0' then
-                                can_right <= true;
-                            end if;
-                    end case;
-                when "011" =>
-                    case rot is
-                        when 0 =>
-                            if game_board_buffer(x - 1)(y + 2) = '0' and game_board_buffer(x)(y + 2) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 1 =>
-                            if game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x + 1)(y + 2) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 2 =>
-                            if game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 3 =>
-                            if game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x + 1)(y + 1) = '0' then
-                                can_right <= true;
-                            end if;
-                    end case;
-                when "100" =>
-                    case rot is
-                        when 0 =>
-                            if game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 1) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 1 =>
-                            if game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x + 1)(y + 1) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 2 =>
-                            if game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 2) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 3 =>
-                            if game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 1) = '0' then
-                                can_right <= true;
-                            end if;
-                    end case;
-                when "101" =>
-                    if game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 2) = '0' then
-                        can_right <= true;
-                    end if;
-                when "110" =>
-                    case rot is
-                        when 0 =>
-                            if game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x + 1)(y + 2) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 1 =>
-                            if game_board_buffer(x - 1)(y + 2) = '0' and game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 1) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 2 =>
-                            if game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x + 1)(y + 2) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 3 =>
-                            if game_board_buffer(x - 1)(y + 2) = '0' and game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 1) = '0' then
-                                can_right <= true;
-                            end if;
-                    end case;
-                when "111" =>
-                    case rot is
-                        when 0 =>
-                            if game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 1) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 1 =>
-                            if game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 2) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 2 =>
-                            if game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 1) = '0' then
-                                can_right <= true;
-                            end if;
-                        when 3 =>
-                            if game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 2) = '0' then
-                                can_right <= true;
-                            end if;
-                    end case;
-                end case;
-                
-                if can_right then
-                    y <= y + 1;
-                    for i in 0 to rows - 1 loop
-                        fall_board(i) <= fall_board(i)(0 to cols - 2) & fall_board(i)(cols - 1);
-                    end loop;
+            when "010" => 
+                if game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 1 + 3) = "000" then
+                    x <= x + 1;
+                    fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                else
+                    finished <= '1';
                 end if;
-            end if;
-            
-            if rising_edge(up) then
-                -- check for collision, then rotate
-                can_rot <= false;
-                case block_type is
-                when "001" =>
-                    case rot is
-                        when 0 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x + 1)(y + 1) = '0' and game_board_buffer(x + 2)(y + 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y + 1) <= '1';
-                                fall_board(x)(y + 1) <= '1';
-                                fall_board(x + 1)(y + 1) <= '1';
-                                fall_board(x + 2)(y + 1) <= '1';
-                                can_rot <= true;
-                            -- (0, -2)
-                            elsif game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 1) = '0' and game_board_buffer(x + 2)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y - 1) <= '1';
-                                fall_board(x)(y - 1) <= '1';
-                                fall_board(x + 1)(y - 1) <= '1';
-                                fall_board(x + 2)(y - 1) <= '1';
-                                can_rot <= true;
-                            -- (0, 1)
-                            elsif game_board_buffer(x - 1)(y + 2) = '0' and game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 2) = '0' and game_board_buffer(x + 2)(y + 2) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y + 2) <= '1';
-                                fall_board(x)(y + 2) <= '1';
-                                fall_board(x + 1)(y + 2) <= '1';
-                                fall_board(x + 2)(y + 2) <= '1';
-                                can_rot <= true;
-                            -- (1, -2)
-                            elsif game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 1) = '0' and game_board_buffer(x + 2)(y - 1) = '0' and game_board_buffer(x + 3)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y - 1) <= '1';
-                                fall_board(x + 1)(y - 1) <= '1';
-                                fall_board(x + 2)(y - 1) <= '1';
-                                fall_board(x + 3)(y - 1) <= '1';
-                                can_rot <= true;
-                            -- (-2, 1)
-                            elsif game_board_buffer(x - 3)(y + 2) = '0' and game_board_buffer(x - 2)(y + 2) = '0' and game_board_buffer(x - 1)(y + 2) = '0' and game_board_buffer(x)(y + 2) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 3)(y + 2) <= '1';
-                                fall_board(x - 2)(y + 2) <= '1';
-                                fall_board(x - 1)(y + 2) <= '1';
-                                fall_board(x)(y + 2) <= '1';
-                                can_rot <= true;
-                            end if;
-                        when 1 =>
-                            -- (0, 0)
-                            if game_board_buffer(x + 1)(y - 1 to y + 2) = "0000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y - 1 to y + 2) <= (others => '1');
-                                can_rot <= true;
-                            -- (0, -1)
-                            elsif game_board_buffer(x + 1)(y - 2 to y + 1) = "0000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y - 2 to y + 1) <= (others => '1');
-                                can_rot <= true;
-                            -- (0, 2)
-                            elsif game_board_buffer(x + 1)(y + 1 to y + 4) = "0000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y + 1 to y + 4) <= (others => '1');
-                                can_rot <= true;
-                            -- (-2, -1)
-                            elsif game_board_buffer(x - 1)(y - 2 to y + 1) = "0000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y - 2 to y + 1) <= (others => '1');
-                                can_rot <= true;
-                            -- (1, 2)
-                            elsif game_board_buffer(x + 2)(y + 1 to y + 4) = "0000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 2)(y + 1 to y + 4) <= (others => '1');
-                                can_rot <= true;
-                            end if;
-                        when 2 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y) = '0' and game_board_buffer(x)(y) = '0' and game_board_buffer(x + 1)(y) = '0' and game_board_buffer(x + 2)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y) <= '1';
-                                fall_board(x)(y) <= '1';
-                                fall_board(x + 1)(y) <= '1';
-                                fall_board(x + 2)(y) <= '1';
-                                can_rot <= true;
-                            -- (0, 2)
-                            elsif game_board_buffer(x - 1)(y + 2) = '0' and game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 2) = '0' and game_board_buffer(x + 2)(y + 2) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y + 2) <= '1';
-                                fall_board(x)(y + 2) <= '1';
-                                fall_board(x + 1)(y + 2) <= '1';
-                                fall_board(x + 2)(y + 2) <= '1';
-                                can_rot <= true;
-                            -- (0, -1)
-                            elsif game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 1) = '0' and game_board_buffer(x + 2)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y - 1) <= '1';
-                                fall_board(x)(y - 1) <= '1';
-                                fall_board(x + 1)(y - 1) <= '1';
-                                fall_board(x + 2)(y - 1) <= '1';
-                                can_rot <= true;
-                            -- (-1, 2)
-                            elsif game_board_buffer(x - 2)(y + 2) = '0' and game_board_buffer(x - 1)(y + 2) = '0' and game_board_buffer(x)(y + 2) = '0' and game_board_buffer(x + 1)(y + 2) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y + 2) <= '1';
-                                fall_board(x - 1)(y + 2) <= '1';
-                                fall_board(x)(y + 2) <= '1';
-                                fall_board(x + 1)(y + 2) <= '1';
-                                can_rot <= true;
-                            -- (2, -1)
-                            elsif game_board_buffer(x + 1)(y - 1) = '0' and game_board_buffer(x + 2)(y - 1) = '0' and game_board_buffer(x + 3)(y - 1) = '0' and game_board_buffer(x + 4)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y - 1) <= '1';
-                                fall_board(x + 2)(y - 1) <= '1';
-                                fall_board(x + 3)(y - 1) <= '1';
-                                fall_board(x + 4)(y - 1) <= '1';
-                                can_rot <= true;
-                            end if;
-                        when 3 =>
-                            -- (0, 0)
-                            if game_board_buffer(x)(y - 1 to y + 2) = "0000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y - 1 to y + 2) <= (others => '1');
-                                can_rot <= true;
-                            -- (0, 1)
-                            elsif game_board_buffer(x)(y to y + 3) = "0000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y to y + 3) <= (others => '1');
-                                can_rot <= true;
-                            -- (0, -2)
-                            elsif game_board_buffer(x)(y - 3 to y) = "0000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y - 3 to y) <= (others => '1');
-                                can_rot <= true;
-                            -- (2, 1)
-                            elsif game_board_buffer(x + 2)(y to y + 3) = "0000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 2)(y to y + 3) <= (others => '1');
-                                can_rot <= true;
-                            -- (-1, -2)
-                            elsif game_board_buffer(x - 1)(y - 3 to y) = "0000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y - 3 to y) <= (others => '1');
-                                can_rot <= true;
-                            end if;
-                    end case;
-                when "010" => 
-                    case rot is
-                        when 0 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y to y + 1) = "00" and game_board_buffer(x)(y) = '0' and game_board_buffer(x + 1)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y to y + 1) <= "11";
-                                fall_board(x)(y) <= '1';
-                                fall_board(x + 1)(y) <= '1';
-                                can_rot <= true;
-                            -- (0, -1)
-                            elsif game_board_buffer(x - 1)(y - 1 to y) = "00" and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y - 1 to y) <= "11";
-                                fall_board(x)(y - 1) <= '1';
-                                fall_board(x + 1)(y - 1) <= '1';
-                                can_rot <= true;
-                            -- (-1, -1)
-                            elsif game_board_buffer(x - 2)(y - 1 to y) = "00" and game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y - 1 to y) <= "11";
-                                fall_board(x - 1)(y - 1) <= '1';
-                                fall_board(x)(y - 1) <= '1';
-                                can_rot <= true;
-                            -- (2, 0)
-                            elsif game_board_buffer(x + 1)(y to y + 1) = "00" and game_board_buffer(x + 2)(y) = '0' and game_board_buffer(x + 3)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y to y + 1) <= "11";
-                                fall_board(x + 2)(y) <= '1';
-                                fall_board(x + 3)(y) <= '1';
-                                can_rot <= true;
-                            -- (2, -1)
-                            elsif game_board_buffer(x + 1)(y - 1 to y) = "00" and game_board_buffer(x + 2)(y - 1) = '0' and game_board_buffer(x + 3)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y - 1 to y) <= "11";
-                                fall_board(x + 2)(y - 1) <= '1';
-                                fall_board(x + 3)(y - 1) <= '1';
-                                can_rot <= true;
-                            end if;
-                        when 1 =>
-                            -- (0, 0)
-                            if game_board_buffer(x)(y - 1 to y + 1) = "111" and game_board_buffer(x + 1)(y + 1) = '1' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y - 1 to y + 1) <= (others => '1');
-                                fall_board(x + 1)(y + 1) <= '1';
-                                can_rot <= true;
-                            -- (0, 1)
-                            elsif game_board_buffer(x)(y to y + 2) = "111" and game_board_buffer(x + 1)(y + 2) = '1' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y to y + 2) <= (others => '1');
-                                fall_board(x + 1)(y + 2) <= '1';
-                                can_rot <= true;
-                            -- (1, 1)
-                            elsif game_board_buffer(x + 1)(y to y + 2) = "111" and game_board_buffer(x + 2)(y + 2) = '1' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y to y + 2) <= (others => '1');
-                                fall_board(x + 2)(y + 2) <= '1';
-                                can_rot <= true;
-                            -- (-2, 0)
-                            elsif game_board_buffer(x - 2)(y - 1 to y + 1) = "111" and game_board_buffer(x - 1)(y + 1) = '1' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y - 1 to y + 1) <= (others => '1');
-                                fall_board(x - 1)(y + 1) <= '1';
-                                can_rot <= true;
-                            -- (-2, 1)
-                            elsif game_board_buffer(x - 2)(y to y + 2) = "111" and game_board_buffer(x - 1)(y + 2) = '1' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y to y + 2) <= (others => '1');
-                                fall_board(x - 1)(y + 2) <= '1';
-                                can_rot <= true;
-                            end if;
-                        when 2 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y) = '0' and game_board_buffer(x)(y) = '0' and game_board_buffer(x + 1)(y - 1 to y) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y) <= '1';
-                                fall_board(x)(y) <= '1';
-                                fall_board(x + 1)(y - 1 to y) <= "11";
-                                can_rot <= true;
-                            -- (0, 1)
-                            elsif game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x + 1)(y to y + 1) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y + 1) <= '1';
-                                fall_board(x)(y + 1) <= '1';
-                                fall_board(x + 1)(y to y + 1) <= "11";
-                                can_rot <= true;
-                            -- (-1, 1)
-                            elsif game_board_buffer(x - 2)(y + 1) = '0' and game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y to y + 1) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y + 1) <= '1';
-                                fall_board(x - 1)(y + 1) <= '1';
-                                fall_board(x)(y to y + 1) <= "11";
-                                can_rot <= true;
-                            -- (2, 0)
-                            elsif game_board_buffer(x + 1)(y) = '0' and game_board_buffer(x + 2)(y) = '0' and game_board_buffer(x + 3)(y - 1 to y) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y) <= '1';
-                                fall_board(x + 2)(y) <= '1';
-                                fall_board(x + 3)(y - 1 to y) <= "11";
-                                can_rot <= true;
-                            -- (2, 1)
-                            elsif game_board_buffer(x + 1)(y + 1) = '0' and game_board_buffer(x + 2)(y + 1) = '0' and game_board_buffer(x + 3)(y to y + 1) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y + 1) <= '1';
-                                fall_board(x + 2)(y + 1) <= '1';
-                                fall_board(x + 3)(y to y + 1) <= "11";
-                                can_rot <= true;
-                            end if;
-                        when 3 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1 to y + 1) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y - 1) <= '1';
-                                fall_board(x)(y - 1 to y + 1) <= "111";
-                                can_rot <= true;
-                            -- (0, -1)
-                            elsif game_board_buffer(x - 1)(y - 2) = '0' and game_board_buffer(x)(y - 2 to y) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y - 2) <= '1';
-                                fall_board(x)(y - 2 to y) <= "111";
-                                can_rot <= true;
-                            -- (1, -1)
-                            elsif game_board_buffer(x)(y - 2) = '0' and game_board_buffer(x + 1)(y - 2 to y) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y - 2) <= '1';
-                                fall_board(x + 1)(y - 2 to y) <= "111";
-                                can_rot <= true;
-                            -- (-2, 0)
-                            elsif game_board_buffer(x - 3)(y - 1) = '0' and game_board_buffer(x - 2)(y - 1 to y + 1) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 3)(y - 1) <= '1';
-                                fall_board(x - 2)(y - 1 to y + 1) <= "111";
-                                can_rot <= true;
-                            -- (-2, -1)
-                            elsif game_board_buffer(x - 3)(y - 2) = '0' and game_board_buffer(x - 2)(y - 2 to y) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 3)(y - 2) <= '1';
-                                fall_board(x - 2)(y - 2 to y) <= "111";
-                                can_rot <= true;
-                            end if;
-                    end case;
-                when "011" =>
-                    case rot is
-                        when 0 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y) = '0' and game_board_buffer(x)(y) = '0' and game_board_buffer(x + 1)(y to y + 1) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y) <= '1';
-                                fall_board(x)(y) <= '1';
-                                fall_board(x + 1)(y to y + 1) <= "11";
-                                can_rot <= true;
-                            -- (0, -1)
-                            elsif game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1) = '0' and game_board_buffer(x + 1)(y - 1 to y) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y - 1) <= '1';
-                                fall_board(x)(y - 1) <= '1';
-                                fall_board(x + 1)(y - 1 to y) <= "11";
-                                can_rot <= true;
-                            -- (-1, -1)
-                            elsif game_board_buffer(x - 2)(y - 1) = '0' and game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1 to y) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y - 1) <= '1';
-                                fall_board(x - 1)(y - 1) <= '1';
-                                fall_board(x)(y - 1 to y) <= "11";
-                                can_rot <= true;
-                            -- (2, 0)
-                            elsif game_board_buffer(x + 1)(y) = '0' and game_board_buffer(x + 2)(y) = '0' and game_board_buffer(x + 3)(y to y + 1) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y) <= '1';
-                                fall_board(x + 2)(y) <= '1';
-                                fall_board(x + 3)(y to y + 1) <= "11";
-                                can_rot <= true;
-                            -- (2, -1)
-                            elsif game_board_buffer(x + 1)(y - 1) = '0' and game_board_buffer(x + 2)(y - 1) = '0' and game_board_buffer(x + 3)(y - 1 to y) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y - 1) <= '1';
-                                fall_board(x + 2)(y - 1) <= '1';
-                                fall_board(x + 3)(y - 1 to y) <= "11";
-                                can_rot <= true;
-                            end if;
-                        when 1 =>
-                            -- (0, 0)
-                            if game_board_buffer(x)(y - 1 to y + 1) = "000" and game_board_buffer(x + 1)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y - 1 to y + 1) <= (others => '1');
-                                fall_board(x + 1)(y - 1) <= '1';
-                                can_rot <= true;
-                            -- (0, 1)
-                            elsif game_board_buffer(x)(y to y + 2) = "000" and game_board_buffer(x + 1)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y to y + 2) <= (others => '1');
-                                fall_board(x + 1)(y) <= '1';
-                                can_rot <= true;
-                            -- (1, 1)
-                            elsif game_board_buffer(x + 1)(y to y + 2) = "000" and game_board_buffer(x + 2)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y to y + 2) <= (others => '1');
-                                fall_board(x + 2)(y) <= '1';
-                                can_rot <= true;
-                            -- (-2, 0)
-                            elsif game_board_buffer(x - 2)(y - 1 to y + 1) = "000" and game_board_buffer(x - 1)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y - 1 to y + 1) <= (others => '1');
-                                fall_board(x - 1)(y - 1) <= '1';
-                                can_rot <= true;
-                            -- (-2, 1)
-                            elsif game_board_buffer(x - 2)(y to y + 2) = "000" and game_board_buffer(x - 1)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y to y + 2) <= (others => '1');
-                                fall_board(x - 1)(y) <= '1';
-                                can_rot <= true;
-                            end if;
-                        when 2 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y - 1 to y) = "00" and game_board_buffer(x)(y) = '0' and game_board_buffer(x + 1)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y - 1 to y) <= "11";
-                                fall_board(x)(y) <= '1';
-                                fall_board(x + 1)(y) <= '1';
-                                can_rot <= true;
-                            -- (0, 1)
-                            elsif game_board_buffer(x - 1)(y to y + 1) = "00" and game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x + 1)(y + 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y to y + 1) <= "11";
-                                fall_board(x)(y + 1) <= '1';
-                                fall_board(x + 1)(y + 1) <= '1';
-                                can_rot <= true;
-                            -- (-1, 1)
-                            elsif game_board_buffer(x - 2)(y to y + 1) = "00" and game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y to y + 1) <= "11";
-                                fall_board(x - 1)(y + 1) <= '1';
-                                fall_board(x)(y + 1) <= '1';
-                                can_rot <= true;
-                            -- (2, 0)
-                            elsif game_board_buffer(x + 1)(y - 1 to y) = "00" and game_board_buffer(x + 2)(y) = '0' and game_board_buffer(x + 3)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y - 1 to y) <= "11";
-                                fall_board(x + 2)(y) <= '1';
-                                fall_board(x + 3)(y) <= '1';
-                                can_rot <= true;
-                            -- (2, 1)
-                            elsif game_board_buffer(x + 1)(y to y + 1) = "00" and game_board_buffer(x + 2)(y + 1) = '0' and game_board_buffer(x + 3)(y + 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y to y + 1) <= "11";
-                                fall_board(x + 2)(y + 1) <= '1';
-                                fall_board(x + 3)(y + 1) <= '1';
-                                can_rot <= true;
-                            end if;
-                        when 3 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y - 1 to y + 1) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y + 1) <= '1';
-                                fall_board(x)(y - 1 to y + 1) <= "111";
-                                can_rot <= true;
-                            -- (0, -1)
-                            elsif game_board_buffer(x - 1)(y) = '0' and game_board_buffer(x)(y - 2 to y) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y) <= '1';
-                                fall_board(x)(y - 2 to y) <= "111";
-                                can_rot <= true;
-                            -- (1, -1)
-                            elsif game_board_buffer(x)(y) = '0' and game_board_buffer(x + 1)(y - 2 to y) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y) <= '1';
-                                fall_board(x + 1)(y - 2 to y) <= "111";
-                                can_rot <= true;
-                            -- (-2, 0)
-                            elsif game_board_buffer(x - 3)(y + 1) = '0' and game_board_buffer(x - 2)(y - 1 to y + 1) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 3)(y + 1) <= '1';
-                                fall_board(x - 2)(y - 1 to y + 1) <= "111";
-                                can_rot <= true;
-                            -- (-2, -1)
-                            elsif game_board_buffer(x - 3)(y) = '0' and game_board_buffer(x - 2)(y - 2 to y) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 3)(y) <= '1';
-                                fall_board(x - 2)(y - 2 to y) <= "111";
-                                can_rot <= true;
-                            end if;
-                    end case;
-                when "100" =>
-                    case rot is
-                        when 0 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y) = '0' and game_board_buffer(x)(y - 1 to y) = "00" and game_board_buffer(x + 1)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y) <= '1';
-                                fall_board(x)(y - 1 to y) <= "11";
-                                fall_board(x + 1)(y) <= '1';
-                                can_rot <= true;
-                            -- (0, -1)
-                            elsif game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 2 to y - 1) = "00" and game_board_buffer(x + 1)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y) <= '1';
-                                fall_board(x)(y - 1 to y) <= "11";
-                                fall_board(x + 1)(y) <= '1';
-                                can_rot <= true;
-                            -- (-1, -1)
-                            elsif game_board_buffer(x - 2)(y - 1) = '0' and game_board_buffer(x - 1)(y - 2 to y - 1) = "00" and game_board_buffer(x)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y) <= '1';
-                                fall_board(x - 1)(y - 1 to y) <= "11";
-                                fall_board(x)(y) <= '1';
-                                can_rot <= true;
-                            -- (2, 0)
-                            elsif game_board_buffer(x + 1)(y) = '0' and game_board_buffer(x + 2)(y - 1 to y) = "00" and game_board_buffer(x + 3)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y) <= '1';
-                                fall_board(x + 2)(y - 1 to y) <= "11";
-                                fall_board(x + 3)(y) <= '1';
-                                can_rot <= true;
-                            -- (2, -1)
-                            elsif game_board_buffer(x + 1)(y - 1) = '0' and game_board_buffer(x + 2)(y - 2 to y - 1) = "00" and game_board_buffer(x + 3)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y - 1) <= '1';
-                                fall_board(x + 2)(y - 2 to y - 1) <= "11";
-                                fall_board(x + 3)(y - 1) <= '1';
-                                can_rot <= true;
-                            end if;
-                        when 1 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y) = '0' and game_board_buffer(x)(y - 1 to y + 1) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y) <= '1';
-                                fall_board(x)(y - 1 to y + 1) <= (others => '1');
-                                can_rot <= true;
-                            -- (0, 1)
-                            elsif game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y to y + 2) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y + 1) <= '1';
-                                fall_board(x)(y to y + 2) <= (others => '1');
-                                can_rot <= true;
-                            -- (1, 1)
-                            elsif game_board_buffer(x)(y + 1) = '0' and game_board_buffer(x + 1)(y to y + 2) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y + 1) <= '1';
-                                fall_board(x + 1)(y to y + 2) <= (others => '1');
-                                can_rot <= true;
-                            -- (-2, 0)
-                            elsif game_board_buffer(x - 3)(y) = '0' and game_board_buffer(x - 2)(y - 1 to y + 1) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 3)(y) <= '1';
-                                fall_board(x - 2)(y - 1 to y + 1) <= (others => '1');
-                                can_rot <= true;
-                            -- (-2, 1)
-                            elsif game_board_buffer(x - 3)(y + 1) = '0' and game_board_buffer(x - 2)(y to y + 2) = "000" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 3)(y + 1) <= '1';
-                                fall_board(x - 2)(y to y + 2) <= (others => '1');
-                                can_rot <= true;
-                            end if;
-                        when 2 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y) = '0' and game_board_buffer(x)(y to y + 1) = "00" and game_board_buffer(x + 1)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y) <= '1';
-                                fall_board(x)(y to y + 1) <= "11";
-                                fall_board(x + 1)(y) <= '1';
-                                can_rot <= true;
-                            -- (0, 1)
-                            elsif game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y + 1 to y + 2) = "00" and game_board_buffer(x + 1)(y + 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y + 1) <= '1';
-                                fall_board(x)(y + 1 to y + 2) <= "11";
-                                fall_board(x + 1)(y + 1) <= '1';
-                                can_rot <= true;
-                            -- (-1, 1)
-                            elsif game_board_buffer(x - 2)(y + 1) = '0' and game_board_buffer(x - 1)(y + 1 to y + 2) = "00" and game_board_buffer(x)(y + 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y + 1) <= '1';
-                                fall_board(x - 1)(y + 1 to y + 2) <= "11";
-                                fall_board(x)(y + 1) <= '1';
-                                can_rot <= true;
-                            -- (2, 0)
-                            elsif game_board_buffer(x + 1)(y) = '0' and game_board_buffer(x + 2)(y to y + 1) = "00" and game_board_buffer(x + 3)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y) <= '1';
-                                fall_board(x + 2)(y to y + 1) <= "11";
-                                fall_board(x + 3)(y) <= '1';
-                                can_rot <= true;
-                            -- (2, 1)
-                            elsif game_board_buffer(x + 1)(y + 1) = '0' and game_board_buffer(x + 2)(y + 1 to y + 2) = "00" and game_board_buffer(x + 3)(y + 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y + 1) <= '1';
-                                fall_board(x + 2)(y + 1 to y + 2) <= "11";
-                                fall_board(x + 3)(y + 1) <= '1';
-                                can_rot <= true;
-                            end if;
-                        when 3 =>
-                            -- (0, 0)
-                            if game_board_buffer(x)(y - 1 to y + 1) = "000" and game_board_buffer(x + 1)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y - 1 to y + 1) <= (others => '1');
-                                fall_board(x + 1)(y) <= '1';
-                                can_rot <= true;
-                            -- (0, -1)
-                            elsif game_board_buffer(x)(y - 2 to y) = "000" and game_board_buffer(x + 1)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y - 2 to y) <= (others => '1');
-                                fall_board(x + 1)(y - 1) <= '1';
-                                can_rot <= true;
-                            -- (1, -1)
-                            elsif game_board_buffer(x + 1)(y - 2 to y) = "000" and game_board_buffer(x + 2)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y - 2 to y) <= (others => '1');
-                                fall_board(x + 2)(y - 1) <= '1';
-                                can_rot <= true;
-                            -- (-2, 0)
-                            elsif game_board_buffer(x - 2)(y - 1 to y + 1) = "000" and game_board_buffer(x - 1)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y - 1 to y + 1) <= (others => '1');
-                                fall_board(x - 1)(y) <= '1';
-                                can_rot <= true;
-                            -- (-2, -1)
-                            elsif game_board_buffer(x - 2)(y - 2 to y) = "000" and game_board_buffer(x - 1)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y - 2 to y) <= (others => '1');
-                                fall_board(x - 1)(y - 1) <= '1';
-                                can_rot <= true;
-                            end if;
-                    end case;
-                when "101" =>
-                when "110" =>
-                    case rot is
-                        when 0 | 2 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y + 1) = '0' and game_board_buffer(x)(y to y + 1) = "00" and game_board_buffer(x + 1)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y + 1) <= '1';
-                                fall_board(x)(y to y + 1) <= "11";
-                                fall_board(x + 1)(y) <= '1';
-                                can_rot <= true;
-                            -- (0, -1)
-                            elsif game_board_buffer(x - 1)(y) = '0' and game_board_buffer(x)(y - 1 to y) = "00" and game_board_buffer(x + 1)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y) <= '1';
-                                fall_board(x)(y - 1 to y) <= "11";
-                                fall_board(x + 1)(y - 1) <= '1';
-                                can_rot <= true;
-                            -- (-1, -1)
-                            elsif game_board_buffer(x - 2)(y) = '0' and game_board_buffer(x - 1)(y - 1 to y) = "00" and game_board_buffer(x)(y - 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y) <= '1';
-                                fall_board(x - 1)(y - 1 to y) <= "11";
-                                fall_board(x)(y - 1) <= '1';
-                                can_rot <= true;
-                            -- (2, 0)
-                            elsif game_board_buffer(x + 1)(y + 1) = '0' and game_board_buffer(x + 2)(y to y + 1) = "00" and game_board_buffer(x + 3)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y + 1) <= '1';
-                                fall_board(x + 2)(y to y + 1) <= "11";
-                                fall_board(x + 3)(y) <= '1';
-                                can_rot <= true;
-                            -- (2, 1)
-                            elsif game_board_buffer(x + 1)(y + 2) = '0' and game_board_buffer(x + 2)(y + 1 to y + 2) = "00" and game_board_buffer(x + 3)(y + 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y + 2) <= '1';
-                                fall_board(x + 2)(y + 1 to y + 2) <= "11";
-                                fall_board(x + 3)(y + 1) <= '1';
-                                can_rot <= true;
-                            end if;
-                        when 1 | 3 =>
-                            -- (0, 0)
-                            if game_board_buffer(x)(y - 1 to y) = "00" and game_board_buffer(x + 1)(y to y + 1) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y - 1 to y) <= "00";
-                                fall_board(x + 1)(y to y + 1) <= "00";
-                                can_rot <= true;
-                            -- (0, -1)
-                            elsif game_board_buffer(x)(y - 2 to y - 1) = "00" and game_board_buffer(x + 1)(y - 1 to y) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y - 2 to y - 1) <= "00";
-                                fall_board(x + 1)(y - 1 to y) <= "00";
-                                can_rot <= true;
-                            -- (1, -1)
-                            elsif game_board_buffer(x + 1)(y - 2 to y - 1) = "00" and game_board_buffer(x + 2)(y - 1 to y) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y - 2 to y - 1) <= "00";
-                                fall_board(x + 2)(y - 1 to y) <= "00";
-                                can_rot <= true;
-                            -- (-2, 0)
-                            elsif game_board_buffer(x - 2)(y - 1 to y) = "00" and game_board_buffer(x - 1)(y to y + 1) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y - 1 to y) <= "00";
-                                fall_board(x - 1)(y to y + 1) <= "00";
-                                can_rot <= true;
-                            -- (-2, -1)
-                            elsif game_board_buffer(x - 2)(y - 2 to y - 1) = "00" and game_board_buffer(x - 1)(y - 1 to y) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y - 2 to y - 1) <= "00";
-                                fall_board(x - 1)(y - 1 to y) <= "00";
-                                can_rot <= true;
-                            end if;
-                    end case;
-                when "111" =>
-                    case rot is
-                        when 0 | 2 =>
-                            -- (0, 0)
-                            if game_board_buffer(x - 1)(y) = '0' and game_board_buffer(x)(y to y + 1) = "00" and game_board_buffer(x + 1)(y + 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y) <= '1';
-                                fall_board(x)(y to y + 1) <= (others => '1');
-                                fall_board(x + 1)(y + 1) <= '1';
-                                can_rot <= true;
-                            -- (0, -1)
-                            elsif game_board_buffer(x - 1)(y - 1) = '0' and game_board_buffer(x)(y - 1 to y) = "00" and game_board_buffer(x + 1)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 1)(y - 1) <= '1';
-                                fall_board(x)(y - 1 to y) <= (others => '1');
-                                fall_board(x + 1)(y) <= '1';
-                                can_rot <= true;
-                            -- (-1, -1)
-                            elsif game_board_buffer(x - 2)(y - 1) = '0' and game_board_buffer(x - 1)(y - 1 to y) = "00" and game_board_buffer(x)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y - 1) <= '1';
-                                fall_board(x - 1)(y - 1 to y) <= (others => '1');
-                                fall_board(x)(y) <= '1';
-                                can_rot <= true;
-                            -- (2, 0)
-                            elsif game_board_buffer(x + 1)(y) = '0' and game_board_buffer(x + 2)(y to y + 1) = "00" and game_board_buffer(x + 3)(y + 1) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y) <= '1';
-                                fall_board(x + 2)(y to y + 1) <= (others => '1');
-                                fall_board(x + 3)(y + 1) <= '1';
-                                can_rot <= true;
-                            -- (2, -1)
-                            elsif game_board_buffer(x + 1)(y - 1) = '0' and game_board_buffer(x + 2)(y - 1 to y) = "00" and game_board_buffer(x + 3)(y) = '0' then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y - 1) <= '1';
-                                fall_board(x + 2)(y - 1 to y) <= (others => '1');
-                                fall_board(x + 3)(y) <= '1';
-                                can_rot <= true;
-                            end if;
-                        when 1 | 3 =>
-                            -- (0, 0)
-                            if game_board_buffer(x)(y to y + 1) = "00" and game_board_buffer(x + 1)(y - 1 to y) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y to y + 1) <= (others => '1');
-                                fall_board(X + 1)(y - 1 to y) <= (others => '1');
-                                can_rot <= true;
-                            -- (0, -1)
-                            elsif game_board_buffer(x)(y - 1 to y) = "00" and game_board_buffer(x + 1)(y - 2 to y - 1) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x)(y - 1 to y) <= (others => '1');
-                                fall_board(X + 1)(y - 2 to y - 1) <= (others => '1');
-                                can_rot <= true;
-                            -- (1, -1)
-                            elsif game_board_buffer(x + 1)(y - 1 to y) = "00" and game_board_buffer(x + 2)(y - 2 to y - 1) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x + 1)(y - 1 to y) <= (others => '1');
-                                fall_board(X + 2)(y - 2 to y - 1) <= (others => '1');
-                                can_rot <= true;
-                            -- (-2, 0)
-                            elsif game_board_buffer(x - 2)(y to y + 1) = "00" and game_board_buffer(x - 1)(y - 1 to y) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y to y + 1) <= (others => '1');
-                                fall_board(X - 1)(y - 1 to y ) <= (others => '1');
-                                can_rot <= true;
-                            -- (-2, -1)
-                            elsif game_board_buffer(x - 2)(y - 1 to y) = "00" and game_board_buffer(x - 1)(y - 2 to y - 1) = "00" then
-                                fall_board <= (others => (others => '0'));
-                                fall_board(x - 2)(y - 1 to y) <= (others => '1');
-                                fall_board(X - 1)(y - 2 to y - 1) <= (others => '1');
-                                can_rot <= true;
-                            end if;
-                    end case;
-                end case;
-                
-                if can_rot then
-                    rot <= rot + 1;
+            when "011" =>
+                if game_board_buffer(x + 1 + 3)(y - 1 + 3 to y + 1 + 3) = "000" then
+                    x <= x + 1;
+                    fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                else
+                    finished <= '1';
                 end if;
-            end if;
-        end if;
-        
-        if rising_edge(game_clk) then
-            -- shift down or place block
-            case block_type is
-                when "001" =>
-                    if game_board_buffer(x + 1)(y - 1 to y + 2) = "0000" then
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    else
-                        finished <= '1';
-                    end if;
-                when "010" => 
-                    if game_board_buffer(x + 1)(y - 1 to y + 1) = "000" then
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    else
-                        finished <= '1';
-                    end if;
-                when "011" =>
-                    if game_board_buffer(x + 1)(y - 1 to y + 1) = "000" then
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    else
-                        finished <= '1';
-                    end if;
-                when "100" =>
-                    if game_board_buffer(x + 1)(y - 1) = '0' and game_board_buffer(x + 2)(y) = '0' and game_board_buffer(x + 1)(y + 1) = '0' then
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    else
-                        finished <= '1';
-                    end if;
-                when "101" =>
-                    if game_board_buffer(x + 1)(y to y + 1) = "00" then
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    else
-                        finished <= '1';
-                    end if;
-                when "110" =>
-                    if game_board_buffer(x + 2)(y to y + 1) = "00" and game_board_buffer(x + 1)(y - 1) = '0' then
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    else
-                        finished <= '1';
-                    end if;
-                when "111" =>
-                    if game_board_buffer(x + 2)(y - 1 to y) = "00" and game_board_buffer(x + 1)(y + 1) = '0' then
-                        x <= x + 1;
-                        fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
-                    else
-                        finished <= '1';
-                    end if;
-            end case;
-        end if;
+            when "100" =>
+                if game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' and game_board_buffer(x + 2 + 3)(y + 3) = '0' and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                    x <= x + 1;
+                    fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                else
+                    finished <= '1';
+                end if;
+            when "101" =>
+                if game_board_buffer(x + 1 + 3)(y + 3 to y + 1 + 3) = "00" then
+                    x <= x + 1;
+                    fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                else
+                    finished <= '1';
+                end if;
+            when "110" =>
+                if game_board_buffer(x + 2 + 3)(y + 3 to y + 1 + 3) = "00" and game_board_buffer(x + 1 + 3)(y - 1 + 3) = '0' then
+                    x <= x + 1;
+                    fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                else
+                    finished <= '1';
+                end if;
+            when "111" =>
+                if game_board_buffer(x + 2 + 3)(y - 1 + 3 to y + 3) = "00" and game_board_buffer(x + 1 + 3)(y + 1 + 3) = '0' then
+                    x <= x + 1;
+                    fall_board <= fall_board(rows - 1) & fall_board(0 to rows - 2);
+                else
+                    finished <= '1';
+                end if;
+            when others =>
+        end case;
     end if;
 end process;
+
+-- process to synchronize the inputs
+process(clk)
+begin
+    if rising_edge(clk) then
+        game_clk_sync <= game_clk_sync(0) & game_clk;
+        left_sync <= left_sync(0) & left;
+        right_sync <= right_sync(0) & right;
+        up_sync <= up_sync(0) & up;
+        place_sync <= place_sync(0) & place;
+    end if;
+end process;
+
 end Behavioral;

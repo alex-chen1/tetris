@@ -1,3 +1,9 @@
 Time resolution is 1 ps
 Note: new block
 Time: 165 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__25  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: made it here
+Time: 725 ns  Iteration: 1  Process: /Board_TB/UUT/FallingBlock/line__47  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/falling_block.vhd
+Note: true
+Time: 725 ns  Iteration: 1  Process: /Board_TB/UUT/FallingBlock/line__47  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/falling_block.vhd
+Note: running can right code
+Time: 725 ns  Iteration: 1  Process: /Board_TB/UUT/FallingBlock/line__47  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/falling_block.vhd

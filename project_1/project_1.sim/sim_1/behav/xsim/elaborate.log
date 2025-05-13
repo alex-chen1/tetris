@@ -19,6 +19,7 @@ Compiling architecture behavioral of entity xil_defaultlib.score_keeper [score_k
 Compiling architecture behavioral of entity xil_defaultlib.line_clear [line_clear_default]
 Compiling architecture behavioral of entity xil_defaultlib.block_memory [block_memory_default]
 Compiling architecture behavioral of entity xil_defaultlib.game_control_FSM [game_control_fsm_default]
+Compiling architecture behavioral of entity xil_defaultlib.falling_block [falling_block_default]
 Compiling architecture structural of entity xil_defaultlib.week421 [week421_default]
 Compiling architecture tb_architecture of entity xil_defaultlib.board_tb
 Built simulation snapshot Board_TB_behav

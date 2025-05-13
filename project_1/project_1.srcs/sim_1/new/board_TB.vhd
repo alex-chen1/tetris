@@ -29,6 +29,10 @@ architecture TB_ARCHITECTURE of Board_TB is
         Port (
             nReset              :   in std_logic;
             start_game          :   in std_logic;
+            left                :   in std_logic;
+            right               :   in std_logic;
+            up                  :   in std_logic;
+            place               :   in std_logic;
             r                   :   in std_logic_vector(8 downto 0);
             c                   :   in std_logic_vector(9 downto 0);
             clk                 :   in std_logic;
@@ -47,6 +51,10 @@ architecture TB_ARCHITECTURE of Board_TB is
     -- signals mapped to input of tested entity
     signal nReset           :   std_logic;
     signal start_game       :   std_logic;
+    signal left             :   std_logic;
+    signal right            :   std_logic;
+    signal up               :   std_logic;
+    signal place            :   std_logic;
     signal r                :   std_logic_vector(8 downto 0);
     signal c                :   std_logic_vector(9 downto 0);
     
@@ -113,6 +121,10 @@ begin
         port map (
             nReset => nReset,
             start_game => start_game,
+            left => left,
+            right => right,
+            up => up,
+            place => place,
             r => r,
             c => c,
             clk => clk,
@@ -129,12 +141,29 @@ begin
     begin
         -- print the starting screen
         start_game <= '0';
+        left <= '0';
+        right <= '0';
+        up <= '0';
+        place <= '0';
         wait for 10 ns;
         start_game <= '1';
         wait for 100 ns;
         start_game <= '0';
 --        printOutput(r, c, fout, lo, vga_output, outputVector);
-        wait for 1 us;
+        wait for 0.5 us;
+        left <= '1';
+        wait for 10 ns;
+        left <= '0';
+        wait for 90 ns;
+        right <= '1';
+        wait for 10 ns;
+        right <= '0';
+        wait for 90 ns;
+        up <= '1';
+        wait for 10 ns;
+        up <= '0';
+        wait for 90 ns;
+        wait for 2 us;
         END_SIM <= true;
     end process;
     

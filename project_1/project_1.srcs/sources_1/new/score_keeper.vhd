@@ -1,25 +1,41 @@
+----------------------------------------------------------------------------
+--
+--  Score Keeper : Module for converting the score into a 3 digit 7 segment display
+--
+--  This module takes in the score and outputs three 7 segment display signals for
+--  each digit. The signals are then mapped onto the corresponding pixels on the screen
+--  to display the score.
+--
+--  Revision History:
+--  5/1/25  Alex Chen       Initial revision
+--
+----------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
 entity score_keeper is
-    Port ( score    : in integer range 0 to 999;
-           clk      : in std_logic;
-           hundreds : out STD_LOGIC_VECTOR (6 downto 0);
-           tens     : out STD_LOGIC_VECTOR (6 downto 0);
-           ones     : out STD_LOGIC_VECTOR (6 downto 0)
+    Port ( score    : in integer range 0 to 999;            -- integer representing game score
+           clk      : in std_logic;                         -- 8 MHz clock signal
+           hundreds : out STD_LOGIC_VECTOR (6 downto 0);    -- hundreds digit 7 segment display
+           tens     : out STD_LOGIC_VECTOR (6 downto 0);    -- tens digit 7 segment display
+           ones     : out STD_LOGIC_VECTOR (6 downto 0)     -- ones digit 7 segment display
     );
 end score_keeper;
 
 architecture Behavioral of score_keeper is
+    -- declare integer signals for the hundreds, tens, and ones digits
     signal hundreds_int :   integer range 0 to 9;
     signal tens_int     :   integer range 0 to 9;
     signal ones_int     :   integer range 0 to 9;
 begin
+    -- split the score into the hundreds, tens, and ones place
     hundreds_int <= score / 100;
     tens_int <= (score / 10) mod 10;
     ones_int <= score mod 10;
+    
     process(clk)
     begin
+        -- convert the hundreds int to a 7 segment signal
         case hundreds_int is
             when 0 =>
                 hundreds <= (6 => '0', others => '1');
@@ -43,6 +59,7 @@ begin
                 hundreds <= (3 => '0', 4 => '0', others => '1');
         end case;
         
+        -- convert the tens int to a 7 segment signal
         case tens_int is
             when 0 =>
                 tens <= (6 => '0', others => '1');
@@ -66,6 +83,7 @@ begin
                 tens <= (3 => '0', 4 => '0', others => '1');
         end case;
         
+        -- convert the ones int to a 7 segment signal
         case ones_int is
             when 0 =>
                 ones <= (6 => '0', others => '1');

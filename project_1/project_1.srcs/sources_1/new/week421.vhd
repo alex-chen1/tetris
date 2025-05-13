@@ -5,6 +5,10 @@ use work.utilities.all;
 entity week421 is
     Port ( nReset               :   in std_logic;
            start_game           :   in std_logic;
+           left                 :   in std_logic;
+           right                :   in std_logic;
+           up                   :   in std_logic;
+           place                :   in std_logic;
            r                    :   in std_logic_vector(8 downto 0);
            c                    :   in std_logic_vector(9 downto 0);
            clk                  :   in std_logic;
@@ -74,6 +78,22 @@ architecture Structural of week421 is
             output_state    :   out states
         );
     end component;
+    
+    component falling_block is
+        Port (
+            block_type      :   in std_logic_vector(2 downto 0);
+            new_fall        :   in std_logic;
+            clk             :   in std_logic;
+            game_clk        :   in std_logic;
+            left            :   in std_logic;
+            right           :   in std_logic;
+            up              :   in std_logic;
+            place           :   in std_logic;
+            finished        :   out std_logic;
+            game_board      :   in boardSize;
+            fall_board      :   buffer boardSize
+        );
+    end component;
 
     signal game_board : boardSize := (18 => (others => '1'), others => (others => '0'));
     signal fall_board : boardSize;
@@ -85,6 +105,9 @@ architecture Structural of week421 is
     signal done_fall : std_logic;
     signal done_place : std_logic;
     signal done_score : std_logic;
+    signal falling : boolean;
+    signal new_fall : std_logic;
+    signal finished : std_logic;
     signal next_block : std_logic_vector(2 downto 0) := "000";
     signal curr_block : std_logic_vector(2 downto 0) := "000";
     
@@ -126,8 +149,20 @@ begin
                                                     game_clk => game_clk,
                                                     clk => clk,
                                                     output_state => output_state);
+                                                    
+    FallingBlock : falling_block port map ( block_type => next_block,
+                                            new_fall => new_fall,
+                                            clk => clk,
+                                            game_clk => game_clk,
+                                            left => left,
+                                            right => right,
+                                            up => up,
+                                            place => place,
+                                            finished => finished,
+                                            game_board => game_board,
+                                            fall_board => fall_board);
                                             
-    process (game_clk)
+    process (clk)
     begin
         if rising_edge(game_clk) then
             case output_state is
@@ -136,10 +171,16 @@ begin
                     gen_block_en <= '1';
                     curr_block <= next_block;
                     done_gen <= '1';
+                    falling <= false;
                 when fall_block =>
+                    if not falling then
+                        new_fall <= '1';
+                        falling <= true;
+                    else
+                        new_fall <= '0';
+                    end if;
                 when place_block =>
                 when scoring =>
-                    game_board <= combined_board;
             end case;
         end if;
     end process;
