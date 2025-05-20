@@ -11,13 +11,13 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="3.000 ns"></ZoomStartTime>
-      <ZoomEndTime time="2,178.001 ns"></ZoomEndTime>
-      <Cursor1Time time="865.000 ns"></Cursor1Time>
+      <ZoomStartTime time="7,957.400 ns"></ZoomStartTime>
+      <ZoomEndTime time="10,392.401 ns"></ZoomEndTime>
+      <Cursor1Time time="9,217.400 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="512"></NameColumnWidth>
-      <ValueColumnWidth column_width="84"></ValueColumnWidth>
+      <NameColumnWidth column_width="208"></NameColumnWidth>
+      <ValueColumnWidth column_width="336"></ValueColumnWidth>
    </column_width_setting>
    <WVObjectSize size="33" />
    <wvobject fp_name="/Board_TB/clk" type="logic">
@@ -36,13 +36,13 @@
       <obj_property name="ElementShortName">game_board[0:19][0:9]</obj_property>
       <obj_property name="ObjectShortName">game_board[0:19][0:9]</obj_property>
    </wvobject>
-   <wvobject fp_name="/Board_TB/UUT/game_board_cleared" type="array">
-      <obj_property name="ElementShortName">game_board_cleared[0:19][0:9]</obj_property>
-      <obj_property name="ObjectShortName">game_board_cleared[0:19][0:9]</obj_property>
-   </wvobject>
    <wvobject fp_name="/Board_TB/UUT/FallingBlock/game_board_buffer" type="array">
       <obj_property name="ElementShortName">game_board_buffer[0:25][0:15]</obj_property>
       <obj_property name="ObjectShortName">game_board_buffer[0:25][0:15]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/game_board_cleared" type="array">
+      <obj_property name="ElementShortName">game_board_cleared[0:19][0:9]</obj_property>
+      <obj_property name="ObjectShortName">game_board_cleared[0:19][0:9]</obj_property>
    </wvobject>
    <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board" type="array">
       <obj_property name="ElementShortName">fall_board[0:19][0:9]</obj_property>
@@ -82,88 +82,6 @@
       <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[6]" type="array">
          <obj_property name="ElementShortName">[6][0:9]</obj_property>
          <obj_property name="ObjectShortName">[6][0:9]</obj_property>
-         <obj_property name="Radix">BINARYRADIX</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[7]" type="array">
-         <obj_property name="ElementShortName">[7][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[7][0:9]</obj_property>
-         <obj_property name="Radix">BINARYRADIX</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[8]" type="array">
-         <obj_property name="ElementShortName">[8][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[8][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[9]" type="array">
-         <obj_property name="ElementShortName">[9][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[9][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[10]" type="array">
-         <obj_property name="ElementShortName">[10][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[10][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[11]" type="array">
-         <obj_property name="ElementShortName">[11][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[11][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[12]" type="array">
-         <obj_property name="ElementShortName">[12][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[12][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[13]" type="array">
-         <obj_property name="ElementShortName">[13][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[13][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[14]" type="array">
-         <obj_property name="ElementShortName">[14][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[14][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[15]" type="array">
-         <obj_property name="ElementShortName">[15][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[15][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[16]" type="array">
-         <obj_property name="ElementShortName">[16][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[16][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[17]" type="array">
-         <obj_property name="ElementShortName">[17][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[17][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[18]" type="array">
-         <obj_property name="ElementShortName">[18][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[18][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[19]" type="array">
-         <obj_property name="ElementShortName">[19][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[19][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[0]" type="array">
-         <obj_property name="ElementShortName">[0][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[0][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[1]" type="array">
-         <obj_property name="ElementShortName">[1][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[1][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[2]" type="array">
-         <obj_property name="ElementShortName">[2][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[2][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[3]" type="array">
-         <obj_property name="ElementShortName">[3][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[3][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[4]" type="array">
-         <obj_property name="ElementShortName">[4][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[4][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[5]" type="array">
-         <obj_property name="ElementShortName">[5][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[5][0:9]</obj_property>
-      </wvobject>
-      <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[6]" type="array">
-         <obj_property name="ElementShortName">[6][0:9]</obj_property>
-         <obj_property name="ObjectShortName">[6][0:9]</obj_property>
       </wvobject>
       <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[7]" type="array">
          <obj_property name="ElementShortName">[7][0:9]</obj_property>
@@ -204,10 +122,12 @@
       <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[16]" type="array">
          <obj_property name="ElementShortName">[16][0:9]</obj_property>
          <obj_property name="ObjectShortName">[16][0:9]</obj_property>
+         <obj_property name="Radix">BINARYRADIX</obj_property>
       </wvobject>
       <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[17]" type="array">
          <obj_property name="ElementShortName">[17][0:9]</obj_property>
          <obj_property name="ObjectShortName">[17][0:9]</obj_property>
+         <obj_property name="Radix">BINARYRADIX</obj_property>
       </wvobject>
       <wvobject fp_name="/Board_TB/UUT/FallingBlock/fall_board[18]" type="array">
          <obj_property name="ElementShortName">[18][0:9]</obj_property>
@@ -245,10 +165,6 @@
    <wvobject fp_name="/Board_TB/UUT/GameControlFSM/game_rise" type="logic">
       <obj_property name="ElementShortName">game_rise</obj_property>
       <obj_property name="ObjectShortName">game_rise</obj_property>
-   </wvobject>
-   <wvobject fp_name="/Board_TB/UUT/gen_block_en" type="logic">
-      <obj_property name="ElementShortName">gen_block_en</obj_property>
-      <obj_property name="ObjectShortName">gen_block_en</obj_property>
    </wvobject>
    <wvobject fp_name="/Board_TB/UUT/GameControlFSM/gen_rise" type="logic">
       <obj_property name="ElementShortName">gen_rise</obj_property>
@@ -310,10 +226,6 @@
       <obj_property name="ElementShortName">up_sync[1:0]</obj_property>
       <obj_property name="ObjectShortName">up_sync[1:0]</obj_property>
    </wvobject>
-   <wvobject fp_name="/Board_TB/UUT/FallingBlock/can_rot" type="other">
-      <obj_property name="ElementShortName">can_rot</obj_property>
-      <obj_property name="ObjectShortName">can_rot</obj_property>
-   </wvobject>
    <wvobject fp_name="/Board_TB/place" type="logic">
       <obj_property name="ElementShortName">place</obj_property>
       <obj_property name="ObjectShortName">place</obj_property>
@@ -321,5 +233,100 @@
    <wvobject fp_name="/Board_TB/UUT/FallingBlock/place_sync" type="array">
       <obj_property name="ElementShortName">place_sync[1:0]</obj_property>
       <obj_property name="ObjectShortName">place_sync[1:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/LineClear/game_board" type="array">
+      <obj_property name="ElementShortName">game_board[0:19][0:9]</obj_property>
+      <obj_property name="ObjectShortName">game_board[0:19][0:9]</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared" type="array">
+      <obj_property name="ElementShortName">game_board_cleared[0:19][0:9]</obj_property>
+      <obj_property name="ObjectShortName">game_board_cleared[0:19][0:9]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[0]" type="array">
+         <obj_property name="ElementShortName">[0][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[0][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[1]" type="array">
+         <obj_property name="ElementShortName">[1][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[1][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[2]" type="array">
+         <obj_property name="ElementShortName">[2][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[2][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[3]" type="array">
+         <obj_property name="ElementShortName">[3][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[3][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[4]" type="array">
+         <obj_property name="ElementShortName">[4][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[4][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[5]" type="array">
+         <obj_property name="ElementShortName">[5][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[5][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[6]" type="array">
+         <obj_property name="ElementShortName">[6][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[6][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[7]" type="array">
+         <obj_property name="ElementShortName">[7][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[7][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[8]" type="array">
+         <obj_property name="ElementShortName">[8][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[8][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[9]" type="array">
+         <obj_property name="ElementShortName">[9][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[9][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[10]" type="array">
+         <obj_property name="ElementShortName">[10][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[10][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[11]" type="array">
+         <obj_property name="ElementShortName">[11][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[11][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[12]" type="array">
+         <obj_property name="ElementShortName">[12][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[12][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[13]" type="array">
+         <obj_property name="ElementShortName">[13][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[13][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[14]" type="array">
+         <obj_property name="ElementShortName">[14][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[14][0:9]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[15]" type="array">
+         <obj_property name="ElementShortName">[15][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[15][0:9]</obj_property>
+         <obj_property name="Radix">BINARYRADIX</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[16]" type="array">
+         <obj_property name="ElementShortName">[16][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[16][0:9]</obj_property>
+         <obj_property name="Radix">BINARYRADIX</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[17]" type="array">
+         <obj_property name="ElementShortName">[17][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[17][0:9]</obj_property>
+         <obj_property name="Radix">BINARYRADIX</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[18]" type="array">
+         <obj_property name="ElementShortName">[18][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[18][0:9]</obj_property>
+         <obj_property name="Radix">BINARYRADIX</obj_property>
+      </wvobject>
+      <wvobject fp_name="/Board_TB/UUT/LineClear/game_board_cleared[19]" type="array">
+         <obj_property name="ElementShortName">[19][0:9]</obj_property>
+         <obj_property name="ObjectShortName">[19][0:9]</obj_property>
+         <obj_property name="Radix">BINARYRADIX</obj_property>
+      </wvobject>
    </wvobject>
 </wave_config>

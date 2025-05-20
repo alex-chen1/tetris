@@ -76,30 +76,20 @@ begin
         end if;
         if done_gen_vector = "01" then
             gen_rise <= '1';
+            score_rise <= '0';
         end if;
         if done_fall_vector = "01" then
             fall_rise <= '1';
+            gen_rise <= '0';
         end if;
         if done_place_vector = "01" then
             place_rise <= '1';
+            fall_rise <= '0';
         end if;
         if done_score_vector = "01" then
             score_rise <= '1';
+            place_rise <= '0';
         end if;
-        
-        case curr_state is
-            when init =>
-            when gen_block =>
-                game_rise <= '0';
-                score_rise <= '0';
-            when fall_block =>
-                gen_rise <= '0';
-            when place_block =>
-                fall_rise <= '0';
-            when scoring =>
-                place_rise <= '0';
-        end case;
-        
     end if;
 end process;
 

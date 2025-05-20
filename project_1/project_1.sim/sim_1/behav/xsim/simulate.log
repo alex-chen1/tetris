@@ -1,9 +1,29 @@
 Time resolution is 1 ps
-Note: new block
-Time: 165 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__25  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
-Note: made it here
-Time: 725 ns  Iteration: 1  Process: /Board_TB/UUT/FallingBlock/line__47  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/falling_block.vhd
-Note: true
-Time: 725 ns  Iteration: 1  Process: /Board_TB/UUT/FallingBlock/line__47  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/falling_block.vhd
-Note: running can right code
-Time: 725 ns  Iteration: 1  Process: /Board_TB/UUT/FallingBlock/line__47  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/falling_block.vhd
+Note: stuck in loop
+Time: 75 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: stuck in loop
+Time: 2375 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: stuck in loop
+Time: 2375 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: falling, '0' should be 0
+Time: 2765 ns  Iteration: 1  Process: /Board_TB/UUT/FallingBlock/line__64  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/falling_block.vhd
+Note: stuck in loop
+Time: 4775 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: stuck in loop
+Time: 7175 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: stuck in loop
+Time: 9475 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: stuck in loop
+Time: 11575 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: stuck in loop
+Time: 11575 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: stuck in loop
+Time: 13575 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: stuck in loop
+Time: 13575 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: stuck in loop
+Time: 15475 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: stuck in loop
+Time: 17275 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
+Note: stuck in loop
+Time: 18875 ns  Iteration: 1  Process: /Board_TB/UUT/BlockGenerator/line__27  File: C:/Users/alexc/OneDrive/Desktop/tetris/project_1/project_1.srcs/sources_1/new/block_generator.vhd
